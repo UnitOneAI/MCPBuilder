@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug {{serverName}}",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "tsx",
+        "src/index.ts"
+      ],
+      "cwd": "${workspaceFolder}",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "MCP Server running",
+        "uriFormat": "http://localhost:{{#if (eq transport 'http')}}{{port}}{{else}}3000{{/if}}",
+        "action": "openExternally"
+      }
+    }
+  ]
+}

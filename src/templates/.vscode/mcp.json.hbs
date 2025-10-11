@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "{{serverName}}": {
+      {{#if (eq transport 'stdio')}}
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/dist/index.js"
+      ],
+      {{else}}
+      "url": "http://localhost:{{port}}/mcp",
+      {{/if}}
+      "env": {
+        "API_BASE_URL": "{{apiBaseUrl}}"{{#if (eq authType 'bearer')}},
+        "API_TOKEN": "your_bearer_token_here"{{/if}}{{#if (eq authType 'oauth2')}},
+        "API_TOKEN": "your_bearer_token_here"{{/if}}{{#if (eq authType 'apiKey')}},
+        "API_KEY": "your_api_key_here"{{/if}}
+      }
+    }
+  }
+}

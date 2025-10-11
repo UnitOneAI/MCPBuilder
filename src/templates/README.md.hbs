@@ -1,0 +1,436 @@
+# {{name}}
+
+Built by UNITONE MCP Builder
+
+## Overview
+
+{{description}}
+
+This MCP server provides programmatic access to the {{apiName}} API, enabling AI assistants and language models to interact with the service.
+
+**API Base URL:** `{{apiBaseUrl}}`
+**Transport:** {{transport}}
+**Total Tools:** {{tools.length}}
+
+---
+
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+npm install
+```
+
+### Configuration
+
+1. Copy the environment template:
+```bash
+cp .env.example .env
+```
+
+2. Edit `.env` and set your credentials:
+```bash
+API_BASE_URL={{apiBaseUrl}}
+{{#if (eq authType 'bearer')}}
+API_TOKEN=your_bearer_token_here
+{{else if (eq authType 'oauth2')}}
+API_TOKEN=your_oauth2_token_here
+{{else if (eq authType 'apiKey')}}
+API_KEY=your_api_key_here
+{{else}}
+# No authentication required
+{{/if}}
+
+# Optional: Adjust request settings
+REQUEST_TIMEOUT=30000
+MAX_RETRIES=3
+LOG_LEVEL=info
+```
+
+### Running the Server
+
+**Development mode** (with auto-reload):
+```bash
+npm run dev
+```
+
+**Production build:**
+```bash
+npm run build
+npm start
+```
+
+---
+
+## 🔐 Security Best Practices
+
+⚠️ **Important Security Guidelines:**
+
+### Token Management
+- ✅ **Never commit** `.env` files to version control
+- ✅ **Add `.env` to `.gitignore`** (already included)
+- ✅ **Store tokens securely** using secret management tools in production
+- ✅ **Rotate credentials regularly** (recommended: every 90 days)
+- ✅ **Use minimum required permissions** for your API credentials
+
+{{#if (eq authType 'bearer')}}
+### Required Permissions
+This server requires a Bearer token with the following permissions:
+{{#each tools}}
+- `{{this.method}}` access to `{{this.endpoint}}`
+{{/each}}
+
+Please ensure your token has these minimum permissions configured.
+{{else if (eq authType 'apiKey')}}
+### Required Permissions
+This server requires an API key with the following permissions:
+{{#each tools}}
+- `{{this.method}}` access to `{{this.endpoint}}`
+{{/each}}
+
+Please ensure your API key has these minimum permissions configured.
+{{else if (eq authType 'oauth2')}}
+### OAuth2 Configuration
+This server requires an OAuth2 access token. Ensure your token has the required scopes:
+{{#each tools}}
+- Access to `{{this.method}} {{this.endpoint}}`
+{{/each}}
+{{/if}}
+
+### Network Security
+- Run the server in an isolated environment
+- Use firewall rules to restrict access
+- Monitor for unusual API usage patterns
+- Implement rate limiting in your client application if needed
+
+### Data Privacy
+- Review what data is being sent to the API
+- Ensure compliance with your organization's data policies
+- Be aware that API calls may be logged by the service provider
+
+---
+
+## 📚 Available Tools
+
+This server exposes {{tools.length}} tools:
+
+{{#each tools}}
+### {{@index}}. `{{this.name}}`
+
+**Description:** {{this.description}}
+
+**Endpoint:** `{{this.method}} {{this.endpoint}}`
+
+**Parameters:**
+{{#if this.inputSchema.properties}}
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+{{#each this.inputSchema.properties}}
+| `{{@key}}` | {{this.type}} | {{#if this.required}}✅ Yes{{else}}❌ No{{/if}} | {{this.description}} |
+{{/each}}
+{{else}}
+_No parameters required_
+{{/if}}
+
+{{#if this.inputSchema.required}}
+**Required Parameters:** {{#each this.inputSchema.required}}`{{this}}`{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+
+---
+
+{{/each}}
+
+## 🛠️ Configuration Options
+
+All configuration is done through environment variables. Here are the available options:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `API_BASE_URL` | No | {{apiBaseUrl}} | Base URL for API requests |
+{{#if (eq authType 'bearer')}}
+| `API_TOKEN` | **Yes** | - | Bearer authentication token |
+{{else if (eq authType 'oauth2')}}
+| `API_TOKEN` | **Yes** | - | OAuth2 access token |
+{{else if (eq authType 'apiKey')}}
+| `API_KEY` | **Yes** | - | API key for authentication |
+{{/if}}
+| `REQUEST_TIMEOUT` | No | 30000 | Request timeout in milliseconds (1000-300000) |
+| `MAX_RETRIES` | No | 3 | Maximum retry attempts for failed requests (0-10) |
+| `LOG_LEVEL` | No | info | Logging verbosity: `error`, `warn`, `info`, `debug` |
+
+### Timeout Configuration
+
+The `REQUEST_TIMEOUT` controls how long the server waits for API responses:
+- **Minimum:** 1000ms (1 second)
+- **Maximum:** 300000ms (5 minutes)
+- **Default:** 30000ms (30 seconds)
+- **Recommended:** 30000-60000ms for most APIs
+
+### Retry Configuration
+
+The `MAX_RETRIES` controls automatic retry behavior:
+- Failed requests are automatically retried with exponential backoff
+- Retries only occur for network errors and 5xx server errors
+- 4xx client errors (auth failures, invalid requests) are **not** retried
+- Set to `0` to disable retries
+
+### Logging Levels
+
+- **`error`:** Only critical errors
+- **`warn`:** Errors and warnings (includes retry attempts)
+- **`info`:** Normal operations (recommended for production)
+- **`debug`:** Detailed information including API requests/responses
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### ❌ "Configuration Error: Missing required environment variables"
+
+**Problem:** Required credentials are not set.
+
+**Solution:**
+1. Ensure `.env` file exists in the project root
+2. Copy from `.env.example`: `cp .env.example .env`
+3. Set all required variables (marked with **Yes** in Configuration Options table)
+{{#if (eq authType 'bearer')}}
+4. Verify your `API_TOKEN` is valid and not expired
+{{else if (eq authType 'apiKey')}}
+4. Verify your `API_KEY` is valid and not expired
+{{/if}}
+
+#### ❌ "Authentication failed" (401 error)
+
+**Problem:** API credentials are invalid or expired.
+
+**Solution:**
+1. Verify your credentials are correct in `.env`
+2. Check if the token/key has expired
+3. Ensure the credential has the required permissions
+4. Try regenerating your API credentials
+
+#### ❌ "Access denied" (403 error)
+
+**Problem:** Credentials lack required permissions.
+
+**Solution:**
+1. Review the Required Permissions section above
+2. Ensure your credentials have all necessary scopes/permissions
+3. Contact your API administrator to grant required access
+
+#### ❌ "Rate limit exceeded" (429 error)
+
+**Problem:** Too many requests sent to the API.
+
+**Solution:**
+1. The server automatically retries after rate limit errors
+2. Reduce the frequency of requests in your client
+3. Check the API's rate limit documentation
+4. Consider implementing request queuing in your application
+
+#### ❌ "Resource not found" (404 error)
+
+**Problem:** The requested resource doesn't exist.
+
+**Solution:**
+1. Verify the resource ID/path is correct
+2. Check if the resource has been deleted
+3. Ensure you have permission to view the resource
+
+#### ❌ "Request timeout" error
+
+**Problem:** API took too long to respond.
+
+**Solution:**
+1. Increase `REQUEST_TIMEOUT` in `.env` (e.g., `REQUEST_TIMEOUT=60000`)
+2. Check your network connection
+3. Verify the API service is operational
+4. Some operations may naturally take longer - adjust timeout accordingly
+
+#### ❌ "Network error" / "Unable to reach API server"
+
+**Problem:** Cannot connect to the API.
+
+**Solution:**
+1. Check your internet connection
+2. Verify `API_BASE_URL` is correct in `.env`
+3. Check if the API service is down (visit their status page)
+4. Verify firewall rules allow outbound HTTPS connections
+5. Try accessing the API URL directly in a browser
+
+---
+
+## 🔄 Rate Limiting & Retries
+
+This server implements intelligent retry logic:
+
+- **Automatic Retries:** Failed requests are retried up to `MAX_RETRIES` times
+- **Exponential Backoff:** Wait time increases between retries (1s, 2s, 4s, etc.)
+- **Smart Retry Logic:**
+  - ✅ **Retries:** Network errors, 500/502/503/504 server errors
+  - ❌ **No Retry:** 400/401/403/404 client errors, validation failures
+
+**Rate Limit Handling:**
+- 429 errors trigger exponential backoff
+- The server logs retry attempts for debugging
+- Check logs with `LOG_LEVEL=debug` to see retry behavior
+
+---
+
+## 📊 Monitoring & Logging
+
+### Log Output Examples
+
+**Info Level (default):**
+```
+[INFO] ✓ Configuration validated successfully
+[INFO] 🚀 {{name}} MCP Server started successfully
+[INFO] Tool execution requested { tool: 'example_tool' }
+[INFO] API request successful { tool: 'example_tool', status: 200 }
+```
+
+**Debug Level (detailed):**
+```
+[DEBUG] Listing available tools { count: {{tools.length}} }
+[DEBUG] Tool arguments { tool: 'example_tool', args: {...} }
+[DEBUG] Validating inputs for example_tool
+[DEBUG] Making API request { method: 'GET', url: '...' }
+[DEBUG] API response data { tool: 'example_tool', data: {...} }
+```
+
+**Error Level (problems only):**
+```
+[ERROR] Tool execution failed { tool: 'example_tool', error: '...', code: 'AUTH_FAILED' }
+```
+
+### Monitoring Best Practices
+
+1. **Production:** Use `LOG_LEVEL=info` or `LOG_LEVEL=warn`
+2. **Development:** Use `LOG_LEVEL=debug` for detailed debugging
+3. **Troubleshooting:** Enable debug logs temporarily to diagnose issues
+4. Monitor error rates and retry patterns
+5. Alert on repeated authentication failures
+
+---
+
+## 🔧 Usage
+
+{{#if (eq transport 'stdio')}}
+### STDIO Transport
+
+This server uses STDIO transport, which is the standard for MCP servers.
+
+**Configure in Claude Desktop** (`claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "{{name}}": {
+      "command": "node",
+      "args": ["/absolute/path/to/{{name}}/dist/index.js"],
+      "env": {
+        "API_BASE_URL": "{{apiBaseUrl}}",
+        {{#if (eq authType 'bearer')}}
+        "API_TOKEN": "your_token_here"
+        {{else if (eq authType 'apiKey')}}
+        "API_KEY": "your_key_here"
+        {{/if}}
+      }
+    }
+  }
+}
+```
+
+**Note:** Replace `/absolute/path/to/{{name}}/` with the actual path to this server.
+
+{{else}}
+### HTTP Transport
+
+This server uses HTTP with Server-Sent Events (SSE) for streaming.
+
+**Start the server:**
+```bash
+npm start
+```
+
+**Server will be available at:**
+- Main endpoint: `http://localhost:3000`
+- SSE endpoint: `http://localhost:3000/sse`
+- Health check: `http://localhost:3000/health`
+
+{{/if}}
+
+---
+
+## 🧪 Testing the Server
+
+### Manual Testing
+
+1. Start the server in debug mode:
+```bash
+LOG_LEVEL=debug npm run dev
+```
+
+2. Watch the logs for startup messages
+3. Try using a tool from your MCP client
+4. Check debug logs for request/response details
+
+### Verifying Configuration
+
+```bash
+# Check if server starts without errors
+npm start
+
+# Should see:
+# [INFO] ✓ Configuration validated successfully
+# [INFO] 🚀 {{name}} MCP Server started successfully
+```
+
+---
+
+## 📖 Additional Resources
+
+- [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
+- [MCP Specification](https://modelcontextprotocol.io/specification/2025-06-18)
+- [Claude Desktop MCP Guide](https://docs.anthropic.com/claude/docs/model-context-protocol)
+
+---
+
+## 🤝 Support
+
+**Generated Server Issues:**
+If you encounter issues with this generated server, please:
+1. Check the Troubleshooting section above
+2. Review your configuration in `.env`
+3. Enable debug logging (`LOG_LEVEL=debug`)
+4. Report issues to the UNITONE MCP Builder repository
+
+**API Issues:**
+For problems with the API itself, contact the API provider.
+
+---
+
+## 📝 Generated by
+
+[UNITONE MCP Builder](https://github.com/UnitOneAI/MCPBuilder)
+
+Version: 1.0.0
+Generated: {{#if createdAt}}{{createdAt}}{{else}}{{now}}{{/if}}
+
+---
+
+## 📄 License
+
+MIT
+
+---
+
+## ⚠️ Disclaimer
+
+This server is automatically generated and provides access to external APIs. Users are responsible for:
+- Complying with the API provider's terms of service
+- Ensuring proper security of credentials
+- Monitoring and managing API usage and costs
+- Reviewing and understanding what data is sent to the API
