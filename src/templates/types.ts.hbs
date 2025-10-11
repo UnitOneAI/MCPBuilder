@@ -1,0 +1,56 @@
+// Generated types for MCP server
+// This file provides TypeScript type definitions for API requests and responses
+
+{{#each endpoints}}
+/**
+ * Request parameters for {{method}} {{path}}
+ */
+export interface {{pascalCase operationId}}Params {
+  {{#each parameters}}
+  {{sanitizeParamName name}}{{#unless required}}?{{/unless}}: {{mapTypeEnhanced this}};
+  {{/each}}
+}
+
+{{/each}}
+
+/**
+ * Standard API error response
+ */
+export interface ApiError {
+  /** Human-readable error message */
+  message: string;
+  /** Machine-readable error code */
+  code?: string;
+  /** HTTP status code */
+  httpStatus?: number;
+  /** Additional error details */
+  details?: any;
+}
+
+/**
+ * Rate limit information from API headers
+ */
+export interface RateLimitInfo {
+  /** Maximum requests allowed in the current window */
+  limit?: number;
+  /** Remaining requests in the current window */
+  remaining?: number;
+  /** Unix timestamp when the rate limit resets */
+  reset?: number;
+  /** Seconds to wait before retrying (from Retry-After header) */
+  retryAfter?: number;
+  /** Timestamp of last update */
+  lastUpdated: number;
+}
+
+/**
+ * Generic API response wrapper
+ */
+export interface ApiResponse<T = any> {
+  /** Response data */
+  data: T;
+  /** HTTP status code */
+  status: number;
+  /** Response headers */
+  headers?: Record<string, string>;
+}

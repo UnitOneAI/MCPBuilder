@@ -1,0 +1,622 @@
+#!/usr/bin/env node
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import axios from 'axios';
+import axiosRetry from 'axios-retry';
+import { z } from 'zod';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const API_BASE_URL = process.env.API_BASE_URL || '{{apiBaseUrl}}';
+{{#if (eq authType 'apiKey')}}
+const API_KEY = process.env.{{toEnvVarName authConfig.headerName}};
+{{else if (eq authType 'bearer')}}
+const API_TOKEN = process.env.API_TOKEN;
+{{else if (eq authType 'oauth2')}}
+const API_TOKEN = process.env.API_TOKEN;
+{{/if}}
+const REQUEST_TIMEOUT = parseInt(process.env.REQUEST_TIMEOUT || '30000');
+const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '3');
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+
+// ============================================================================
+// Logging System
+// ============================================================================
+
+enum LogLevel {
+  ERROR = 0,
+  WARN = 1,
+  INFO = 2,
+  DEBUG = 3,
+}
+
+class Logger {
+  private level: LogLevel;
+
+  constructor(levelString: string = 'info') {
+    this.level = LogLevel[levelString.toUpperCase() as keyof typeof LogLevel] || LogLevel.INFO;
+  }
+
+  error(message: string, context?: any) {
+    if (this.level >= LogLevel.ERROR) {
+      // For STDIO transport, write to stderr to avoid interfering with JSON-RPC on stdout
+      process.stderr.write(`[ERROR] ${message} ${context ? JSON.stringify(context) : ''}\n`);
+    }
+  }
+
+  warn(message: string, context?: any) {
+    if (this.level >= LogLevel.WARN) {
+      process.stderr.write(`[WARN] ${message} ${context ? JSON.stringify(context) : ''}\n`);
+    }
+  }
+
+  info(message: string, context?: any) {
+    if (this.level >= LogLevel.INFO) {
+      process.stderr.write(`[INFO] ${message} ${context ? JSON.stringify(context) : ''}\n`);
+    }
+  }
+
+  debug(message: string, context?: any) {
+    if (this.level >= LogLevel.DEBUG) {
+      process.stderr.write(`[DEBUG] ${message} ${context ? JSON.stringify(context) : ''}\n`);
+    }
+  }
+}
+
+const logger = new Logger(LOG_LEVEL);
+
+// ============================================================================
+// Configuration Validation
+// ============================================================================
+
+function validateConfiguration(): void {
+  const required: { name: string; value: any; displayName: string }[] = [
+    { name: 'API_BASE_URL', value: API_BASE_URL, displayName: 'API Base URL' },
+    {{#if (eq authType 'bearer')}}
+    { name: 'API_TOKEN', value: API_TOKEN, displayName: 'Bearer Token' },
+    {{else if (eq authType 'oauth2')}}
+    { name: 'API_TOKEN', value: API_TOKEN, displayName: 'OAuth2 Token' },
+    {{else if (eq authType 'apiKey')}}
+    { name: '{{toEnvVarName authConfig.headerName}}', value: API_KEY, displayName: 'API Key' },
+    {{/if}}
+  ];
+
+  const missing = required.filter(r => !r.value);
+
+  if (missing.length > 0) {
+    logger.error('Configuration Error: Missing required environment variables');
+    missing.forEach(m => process.stderr.write(`   ❌ ${m.name}: ${m.displayName}\n`));
+    process.stderr.write('\n💡 Please create a .env file based on .env.example and set these variables.\n\n');
+    process.exit(1);
+  }
+
+  // Validate timeout and retries
+  if (REQUEST_TIMEOUT < 1000 || REQUEST_TIMEOUT > 300000) {
+    logger.warn('REQUEST_TIMEOUT out of recommended range (1000-300000ms), using anyway');
+  }
+
+  if (MAX_RETRIES < 0 || MAX_RETRIES > 10) {
+    logger.warn('MAX_RETRIES out of recommended range (0-10), using anyway');
+  }
+
+  logger.info('✓ Configuration validated successfully');
+}
+
+// ============================================================================
+// HTTP Client Configuration
+// ============================================================================
+
+const apiClient = axios.create({
+  timeout: REQUEST_TIMEOUT,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Configure retry logic
+axiosRetry(apiClient, {
+  retries: MAX_RETRIES,
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) => {
+    // Retry on network errors or 5xx server errors
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+           (error.response?.status ?? 0) >= 500;
+  },
+  onRetry: (retryCount, error, requestConfig) => {
+    logger.warn(`Retry attempt ${retryCount}/${MAX_RETRIES}`, {
+      url: requestConfig.url,
+      method: requestConfig.method,
+      error: error.message,
+    });
+  },
+});
+
+// ============================================================================
+// Rate Limiting Management
+// ============================================================================
+
+interface RateLimitInfo {
+  limit?: number;           // Maximum requests allowed
+  remaining?: number;       // Requests remaining in current window
+  reset?: number;          // Unix timestamp when limit resets
+  retryAfter?: number;     // Seconds to wait before retrying (from Retry-After header)
+  lastUpdated: number;     // Timestamp of last update
+}
+
+class RateLimitTracker {
+  private rateLimitInfo: RateLimitInfo = {
+    lastUpdated: Date.now()
+  };
+
+  /**
+   * Update rate limit information from response headers
+   * Supports common header patterns:
+   * - X-RateLimit-* (GitHub, Twitter, many APIs)
+   * - RateLimit-* (standardized format)
+   * - X-Rate-Limit-* (alternative format)
+   */
+  updateFromHeaders(headers: Record<string, any>): void {
+    const now = Date.now();
+
+    // Check various header formats
+    const limit =
+      headers['x-ratelimit-limit'] ||
+      headers['ratelimit-limit'] ||
+      headers['x-rate-limit-limit'];
+
+    const remaining =
+      headers['x-ratelimit-remaining'] ||
+      headers['ratelimit-remaining'] ||
+      headers['x-rate-limit-remaining'];
+
+    const reset =
+      headers['x-ratelimit-reset'] ||
+      headers['ratelimit-reset'] ||
+      headers['x-rate-limit-reset'];
+
+    const retryAfter = headers['retry-after'];
+
+    if (limit) this.rateLimitInfo.limit = parseInt(limit, 10);
+    if (remaining) this.rateLimitInfo.remaining = parseInt(remaining, 10);
+    if (reset) this.rateLimitInfo.reset = parseInt(reset, 10);
+    if (retryAfter) {
+      // Retry-After can be in seconds or HTTP date
+      const retryAfterNum = parseInt(retryAfter, 10);
+      this.rateLimitInfo.retryAfter = isNaN(retryAfterNum)
+        ? Math.floor((new Date(retryAfter).getTime() - now) / 1000)
+        : retryAfterNum;
+    }
+
+    this.rateLimitInfo.lastUpdated = now;
+
+    // Log rate limit status if we have useful information
+    if (this.rateLimitInfo.remaining !== undefined && this.rateLimitInfo.limit !== undefined) {
+      const percentage = (this.rateLimitInfo.remaining / this.rateLimitInfo.limit) * 100;
+
+      if (percentage < 10) {
+        logger.warn('Rate limit nearly exhausted', {
+          remaining: this.rateLimitInfo.remaining,
+          limit: this.rateLimitInfo.limit,
+          resetAt: this.rateLimitInfo.reset ? new Date(this.rateLimitInfo.reset * 1000).toISOString() : 'unknown'
+        });
+      } else if (percentage < 25) {
+        logger.info('Rate limit status', {
+          remaining: this.rateLimitInfo.remaining,
+          limit: this.rateLimitInfo.limit,
+        });
+      }
+    }
+  }
+
+  /**
+   * Check if we should wait before making a request
+   * Returns number of milliseconds to wait, or 0 if safe to proceed
+   */
+  getWaitTime(): number {
+    const now = Date.now();
+
+    // If we have a retry-after header, respect it
+    if (this.rateLimitInfo.retryAfter && this.rateLimitInfo.retryAfter > 0) {
+      const waitTime = (this.rateLimitInfo.retryAfter * 1000) - (now - this.rateLimitInfo.lastUpdated);
+      return Math.max(0, waitTime);
+    }
+
+    // If we're out of requests, wait until reset
+    if (this.rateLimitInfo.remaining === 0 && this.rateLimitInfo.reset) {
+      const waitTime = (this.rateLimitInfo.reset * 1000) - now;
+      return Math.max(0, waitTime);
+    }
+
+    // If we're very low on requests, add a small delay to spread them out
+    if (this.rateLimitInfo.remaining !== undefined &&
+        this.rateLimitInfo.remaining < 5 &&
+        this.rateLimitInfo.reset) {
+      const timeUntilReset = (this.rateLimitInfo.reset * 1000) - now;
+      if (timeUntilReset > 0 && this.rateLimitInfo.remaining > 0) {
+        // Spread remaining requests evenly across time window
+        return Math.floor(timeUntilReset / this.rateLimitInfo.remaining);
+      }
+    }
+
+    return 0;
+  }
+
+  /**
+   * Get current rate limit status for logging/debugging
+   */
+  getStatus(): RateLimitInfo {
+    return { ...this.rateLimitInfo };
+  }
+}
+
+const rateLimitTracker = new RateLimitTracker();
+
+// Add response interceptor to track rate limits
+apiClient.interceptors.response.use(
+  (response) => {
+    // Update rate limit info from response headers
+    if (response.headers) {
+      rateLimitTracker.updateFromHeaders(response.headers);
+    }
+    return response;
+  },
+  (error) => {
+    // Also check rate limit headers in error responses
+    if (error.response?.headers) {
+      rateLimitTracker.updateFromHeaders(error.response.headers);
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Add request interceptor to implement pre-request rate limiting
+apiClient.interceptors.request.use(
+  async (config) => {
+    const waitTime = rateLimitTracker.getWaitTime();
+    if (waitTime > 0) {
+      logger.info('Rate limit: waiting before request', {
+        waitTimeMs: waitTime,
+        url: config.url
+      });
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// ============================================================================
+// Error Handling
+// ============================================================================
+
+interface ApiError {
+  message: string;
+  code: string;
+  httpStatus?: number;
+}
+
+function handleApiError(error: any): ApiError {
+  if (error.response) {
+    const status = error.response.status;
+    const errorMap: Record<number, ApiError> = {
+      400: { message: 'Invalid request parameters', code: 'INVALID_REQUEST', httpStatus: 400 },
+      401: { message: 'Authentication failed. Please check your API credentials.', code: 'AUTH_FAILED', httpStatus: 401 },
+      403: { message: 'Access denied. Insufficient permissions.', code: 'FORBIDDEN', httpStatus: 403 },
+      404: { message: 'Resource not found', code: 'NOT_FOUND', httpStatus: 404 },
+      429: { message: 'Rate limit exceeded. Please try again later.', code: 'RATE_LIMITED', httpStatus: 429 },
+      500: { message: 'API service error', code: 'SERVICE_ERROR', httpStatus: 500 },
+      502: { message: 'Bad gateway', code: 'BAD_GATEWAY', httpStatus: 502 },
+      503: { message: 'Service unavailable', code: 'SERVICE_UNAVAILABLE', httpStatus: 503 },
+      504: { message: 'Gateway timeout', code: 'GATEWAY_TIMEOUT', httpStatus: 504 },
+    };
+
+    const apiError = errorMap[status] || {
+      message: `API error (HTTP ${status})`,
+      code: 'API_ERROR',
+      httpStatus: status
+    };
+
+    // Enhanced rate limit error messaging
+    if (status === 429) {
+      const rateLimitStatus = rateLimitTracker.getStatus();
+      if (rateLimitStatus.reset) {
+        const resetTime = new Date(rateLimitStatus.reset * 1000);
+        apiError.message = `Rate limit exceeded. Limit resets at ${resetTime.toISOString()}`;
+      } else if (rateLimitStatus.retryAfter) {
+        apiError.message = `Rate limit exceeded. Retry after ${rateLimitStatus.retryAfter} seconds`;
+      }
+    }
+
+    // Include API error details if available
+    if (error.response.data?.message) {
+      apiError.message += `: ${error.response.data.message}`;
+    }
+
+    return apiError;
+  }
+
+  if (error.request) {
+    return {
+      message: 'Network error. Unable to reach API server.',
+      code: 'NETWORK_ERROR'
+    };
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return {
+      message: `Request timeout after ${REQUEST_TIMEOUT}ms`,
+      code: 'TIMEOUT'
+    };
+  }
+
+  if (error instanceof z.ZodError) {
+    return {
+      message: `Validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
+      code: 'VALIDATION_ERROR',
+    };
+  }
+
+  return {
+    message: 'An unexpected error occurred',
+    code: 'UNKNOWN_ERROR'
+  };
+}
+
+// ============================================================================
+// Input Validation Schemas
+// ============================================================================
+
+{{#each tools}}
+const {{camelCase this.name}}Schema{{@index}} = z.object({
+  {{#each this.inputSchema.properties}}
+  {{sanitizeParamName @key}}: {{#if (hasEnum this)}}{{zodEnumWithRequired this.enum @key ../this.inputSchema.required}}{{else}}{{zodTypeWithRequired this @key ../this.inputSchema.required}}{{/if}}{{#if this.description}}.describe('{{this.description}}'){{/if}},
+  {{/each}}
+}).passthrough();
+
+{{/each}}
+
+// ============================================================================
+// MCP Server Configuration
+// ============================================================================
+
+const server = new Server(
+  {
+    name: '{{serverName}}',
+    version: '{{serverVersion}}',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+// Tool definitions
+const TOOLS = [
+{{#each tools}}
+  {
+    name: '{{this.name}}',
+    description: '{{{this.description}}}',
+    inputSchema: {{{json this.inputSchema}}},
+  },
+{{/each}}
+];
+
+// ============================================================================
+// Request Handlers
+// ============================================================================
+
+// List available tools
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  logger.debug('Listing available tools', { count: TOOLS.length });
+  return {
+    tools: TOOLS,
+  };
+});
+
+// Handle tool execution
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+
+  logger.info('Tool execution requested', { tool: name });
+  logger.debug('Tool arguments', { tool: name, args });
+
+  try {
+    switch (name) {
+{{#each tools}}
+      case '{{this.name}}': {
+        // Validate inputs
+        logger.debug('Validating inputs for {{this.name}}');
+        const validation = {{camelCase this.name}}Schema{{@index}}.safeParse(args);
+
+        if (!validation.success) {
+          const validationError = handleApiError(validation.error);
+          logger.error('Input validation failed', {
+            tool: '{{this.name}}',
+            errors: validation.error.errors,
+          });
+          return {
+            content: [{
+              type: 'text',
+              text: validationError.message,
+            }],
+            isError: true,
+          };
+        }
+
+        const validatedArgs = validation.data;
+
+        // Separate parameters by location (path, query, header, body)
+        let url = `${API_BASE_URL}{{this.endpoint}}`;
+        const queryParams: Record<string, any> = {};
+        const headerParams: Record<string, any> = {};
+        const bodyParams: Record<string, any> = {};
+        const pathParamNames: string[] = [];
+
+        // Extract path parameter names from the endpoint
+        const pathParamMatches = '{{this.endpoint}}'.matchAll(/\{([^}]+)\}/g);
+        for (const match of pathParamMatches) {
+          pathParamNames.push(match[1]);
+        }
+
+        // Route parameters to correct location based on prefix
+        if (validatedArgs) {
+          Object.keys(validatedArgs).forEach(key => {
+            if (key.startsWith('path_')) {
+              // Path parameter - replace in URL
+              const paramName = key.replace('path_', '');
+              if (pathParamNames.includes(paramName)) {
+                url = url.replace(`{${paramName}}`, encodeURIComponent(String(validatedArgs[key])));
+              }
+            } else if (key.startsWith('query_')) {
+              // Query parameter - add to params
+              const paramName = key.replace('query_', '');
+              queryParams[paramName] = validatedArgs[key];
+            } else if (key.startsWith('header_')) {
+              // Header parameter - add to headers
+              const paramName = key.replace('header_', '');
+              headerParams[paramName] = validatedArgs[key];
+            } else {
+              // Body parameter (no prefix) - add to body params
+              bodyParams[key] = validatedArgs[key];
+            }
+          });
+        }
+
+        {{#if (eq this.method 'GET')}}
+        {{#if (eq ../authType 'apiKey')}}
+        if (API_KEY) {
+          // Try common API key parameter names
+          if (!queryParams.appid && !queryParams.api_key && !queryParams.apiKey && !queryParams.key) {
+            queryParams.appid = API_KEY;
+          }
+        }
+        {{/if}}
+        {{/if}}
+
+        logger.debug('Making API request', {
+          method: '{{this.method}}',
+          url,
+          {{#if (eq this.method 'GET')}}
+          queryParams,
+          headerParams,
+          {{else}}
+          bodySize: JSON.stringify(validatedArgs).length,
+          headerParams,
+          {{/if}}
+        });
+
+        const response = await apiClient({
+          method: '{{this.method}}',
+          url,
+          {{#if (eq this.method 'GET')}}
+          params: queryParams,
+          {{else}}
+          params: queryParams,
+          data: bodyParams,
+          {{/if}}
+          headers: {
+            'Content-Type': 'application/json',
+            {{#if (eq ../authType 'bearer')}}
+            'Authorization': `Bearer ${API_TOKEN}`,
+            {{else if (eq ../authType 'oauth2')}}
+            'Authorization': `Bearer ${API_TOKEN}`,
+            {{else if (eq ../authType 'apiKey')}}
+            '{{../authConfig.headerName}}': API_KEY,
+            {{/if}}
+            ...headerParams,
+          },
+        });
+
+        logger.info('API request successful', {
+          tool: '{{this.name}}',
+          status: response.status,
+          dataSize: JSON.stringify(response.data).length,
+        });
+
+        logger.debug('API response data', {
+          tool: '{{this.name}}',
+          data: response.data,
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response.data, null, 2),
+            },
+          ],
+        };
+      }
+{{/each}}
+      default:
+        logger.error('Unknown tool requested', { tool: name });
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  } catch (error: any) {
+    const apiError = handleApiError(error);
+
+    logger.error('Tool execution failed', {
+      tool: name,
+      error: apiError.message,
+      code: apiError.code,
+      httpStatus: apiError.httpStatus,
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `${apiError.message}${apiError.code ? ` (${apiError.code})` : ''}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+});
+
+// ============================================================================
+// Server Startup
+// ============================================================================
+
+async function main() {
+  try {
+    // Validate configuration before starting
+    validateConfiguration();
+
+    // Connect transport
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+
+    logger.info('🚀 {{serverName}} MCP Server started successfully', {
+      transport: 'stdio',
+      apiBaseUrl: API_BASE_URL,
+      toolCount: TOOLS.length,
+      timeout: REQUEST_TIMEOUT,
+      maxRetries: MAX_RETRIES,
+    });
+  } catch (error: any) {
+    logger.error('Failed to start server', {
+      error: error.message,
+      stack: error.stack,
+    });
+    process.exit(1);
+  }
+}
+
+main().catch((error) => {
+  logger.error('Fatal error', {
+    error: error.message,
+    stack: error.stack,
+  });
+  process.exit(1);
+});
