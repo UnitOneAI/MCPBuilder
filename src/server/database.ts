@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import type { ApiConfig, McpServerConfig, DeploymentConfig } from '../types/index.js';
 
@@ -7,6 +8,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data/mcp-generator.db');
+
+// Ensure data directory exists
+const dataDir = path.dirname(dbPath);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
 
 // Create database connection
 export const db: Database.Database = new Database(dbPath);
