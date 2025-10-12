@@ -6,6 +6,26 @@ export class ApiParser {
   private currentSpec?: OpenAPISpec; // Store current spec for reference resolution
 
   /**
+   * Sanitize description text for safe use in generated code
+   * Removes newlines, collapses whitespace, escapes quotes, and decodes HTML entities
+   */
+  private sanitizeDescription(description: string | undefined): string {
+    if (!description) return '';
+
+    return description
+      .replace(/&lt;/g, '<')              // Decode HTML entities
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'")
+      .replace(/&#x60;/g, '`')
+      .replace(/&amp;/g, '&')
+      .replace(/\r?\n/g, ' ')             // Replace newlines with spaces
+      .replace(/\s+/g, ' ')               // Collapse multiple spaces into one
+      .replace(/'/g, "\\'")               // Escape single quotes
+      .trim();
+  }
+
+  /**
    * Parse OpenAPI/Swagger specification
    */
   async parseOpenApi(specUrlOrJson: string): Promise<Partial<ApiConfig>> {
@@ -80,12 +100,8 @@ export class ApiParser {
           description = desc || summary || '';
         }
 
-        // Sanitize description: remove newlines and escape quotes for use in generated code
-        description = description
-          .replace(/\r?\n/g, ' ')           // Replace newlines with spaces
-          .replace(/\s+/g, ' ')             // Collapse multiple spaces into one
-          .replace(/'/g, "\\'")             // Escape single quotes
-          .trim();
+        // Sanitize description for use in generated code
+        description = this.sanitizeDescription(description);
 
         apiConfig.endpoints!.push({
           path,
@@ -138,7 +154,7 @@ export class ApiParser {
           name: paramMatch[1],
           type: paramMatch[2],
           required: trimmedLine.toLowerCase().includes('required'),
-          description: paramMatch[3].trim(),
+          description: this.sanitizeDescription(paramMatch[3]),
         });
       }
     }
@@ -290,7 +306,7 @@ export class ApiParser {
             in: resolvedParam.in,
             type: resolvedParam.schema?.type || 'string',
             required: resolvedParam.required || false,
-            description: resolvedParam.description || '',
+            description: this.sanitizeDescription(resolvedParam.description),
             enum: resolvedParam.schema?.enum,
           });
         }
@@ -385,7 +401,7 @@ export class ApiParser {
               name: fullName,
               type: 'object',
               required: requiredFields.includes(propName),
-              description: prop.description || `Circular reference to ${refKey}`,
+              description: this.sanitizeDescription(prop.description || `Circular reference to ${refKey}`),
             });
             continue;
           }
@@ -413,7 +429,7 @@ export class ApiParser {
                 type: 'array',
                 items: 'object',
                 required: requiredFields.includes(propName),
-                description: resolvedProp.description || `Array with circular reference to ${refKey}`,
+                description: this.sanitizeDescription(resolvedProp.description || `Array with circular reference to ${refKey}`),
               });
               continue;
             }
@@ -432,7 +448,7 @@ export class ApiParser {
               type: 'array',
               items: itemSchema.type || 'string',
               required: requiredFields.includes(propName),
-              description: resolvedProp.description || '',
+              description: this.sanitizeDescription(resolvedProp.description),
               enum: itemSchema.enum,
             });
           }
@@ -443,7 +459,7 @@ export class ApiParser {
             name: fullName,
             type: resolvedProp.type || 'string',
             required: requiredFields.includes(propName),
-            description: resolvedProp.description || '',
+            description: this.sanitizeDescription(resolvedProp.description),
             enum: resolvedProp.enum,
             format: resolvedProp.format,
           });
@@ -571,7 +587,7 @@ export class ApiParser {
           name: param.key,
           type: 'string',
           required: !param.disabled,
-          description: param.description || '',
+          description: this.sanitizeDescription(param.description),
         });
       }
     }
