@@ -326,7 +326,7 @@ router.post('/:serverId/deploy', async (req, res) => {
     if (startPhase === 'pending' || startPhase === 'installing' || startPhase === 'installed' || startPhase === 'building') {
       console.log(`[${server.name}] Building server...`);
       deploymentsDb.update(deploymentId, { status: 'deploying', phase: 'building' });
-      try{
+      try {
       await spawnWithTimeout(
         'npm',
         ['run', 'build'],

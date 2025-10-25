@@ -306,11 +306,14 @@ export class McpGenerator {
       const endpoint = 'endpoint' in tool ? tool.endpoint : tool.path;
 
       // Generate tool name from operationId (preferred) or path+method
-      const toolName = this.generateToolName(
+      const originalToolName = this.generateToolName(
         endpoint,
         tool.method,
         tool.operationId
       );
+
+      // Sanitize and potentially abbreviate the tool name
+      const toolName = this.sanitizeToolName(originalToolName);
 
       const inputSchema: any = {
         type: 'object',
@@ -341,9 +344,15 @@ export class McpGenerator {
         }
       }
 
+      // Build description, appending original name if abbreviated
+      let description = tool.description || `${tool.method} ${endpoint}`;
+      if (toolName !== originalToolName && tool.operationId) {
+        description += ` (Original operationId: ${tool.operationId})`;
+      }
+
       tools.push({
         name: toolName,
-        description: tool.description || `${tool.method} ${endpoint}`,
+        description: description,
         inputSchema,
         endpoint: endpoint,
         method: tool.method,
@@ -356,6 +365,7 @@ export class McpGenerator {
   /**
    * Generate a tool name from endpoint information
    * Prefers operationId if available, otherwise falls back to path+method
+   * Note: This returns the raw tool name without sanitization/abbreviation
    */
   private generateToolName(path: string, method: string, operationId?: string): string {
     // If operationId exists, use it (convert to snake_case)
@@ -382,17 +392,17 @@ export class McpGenerator {
       .map((p, i) => (i === 0 ? p : p.charAt(0).toUpperCase() + p.slice(1)));
 
     const methodPrefix = method.toLowerCase();
-    const toolName = methodPrefix + pathParts.join('');
-
-    return this.sanitizeToolName(toolName);
+    return methodPrefix + pathParts.join('');
   }
 
   /**
    * Sanitize tool name to match MCP requirements
    * MCP tool names must contain only alphanumeric characters, underscores, and hyphens
+   * Tool names must be <= 64 characters to comply with Claude Desktop MCP spec
    */
   private sanitizeToolName(name: string): string {
-    return name
+    // First, apply basic sanitization
+    let sanitized = name
       // Remove any invalid characters (keep only alphanumeric, underscore, hyphen)
       .replace(/[^a-zA-Z0-9_-]/g, '_')
       // Replace multiple consecutive underscores/hyphens with single underscore
@@ -401,6 +411,74 @@ export class McpGenerator {
       .replace(/^_+|_+$/g, '')
       // Ensure it's not empty
       || 'tool';
+
+    // If already under 64 char limit (must be < 64, not <= 64), return as-is
+    if (sanitized.length < 64) {
+      return sanitized;
+    }
+
+    // Only if >= 64 chars, apply abbreviations
+    return this.abbreviateToolName(sanitized);
+  }
+
+  /**
+   * Abbreviate tool name to fit within 64 character limit
+   * Only called when tool name exceeds 64 characters
+   */
+  private abbreviateToolName(name: string): string {
+    // Common abbreviations for Microsoft Graph and other enterprise APIs
+    const ABBREVIATIONS: Record<string, string> = {
+      'management': 'mgmt',
+      'device': 'dev',
+      'virtual': 'virt',
+      'endpoint': 'ep',
+      'provisioning': 'prov',
+      'policy': 'pol',
+      'assignment': 'assign',
+      'assigned': 'asgn',
+      'certificate': 'cert',
+      'notification': 'notif',
+      'apple_push_notification': 'apn',
+      'service': 'svc',
+      'error': 'err',
+      'request': 'req',
+      'response': 'resp',
+      'configuration': 'config',
+      'application': 'app',
+      'information': 'info',
+      'directory': 'dir',
+      'authentication': 'auth',
+      'authorization': 'authz',
+      'administrator': 'admin',
+      'organization': 'org',
+      'department': 'dept',
+      'environment': 'env',
+      'deployment': 'deploy',
+      'development': 'dev',
+      'production': 'prod',
+      'acceptance': 'accept',
+      'connection': 'conn',
+    };
+
+    // Split by underscores, abbreviate each word, then rejoin
+    let parts = name.split('_');
+
+    // Apply abbreviations to each part
+    parts = parts.map(part => {
+      // Check if this part has an abbreviation
+      const lowerPart = part.toLowerCase();
+      return ABBREVIATIONS[lowerPart] || part;
+    });
+
+    let abbreviated = parts.join('_');
+
+    // If still too long after abbreviations, truncate intelligently
+    // Keep first 30 chars + '_' + last 30 chars to preserve both prefix and action verb
+    if (abbreviated.length > 64) {
+      abbreviated = abbreviated.substring(0, 30) + '_' + abbreviated.substring(abbreviated.length - 30);
+    }
+
+    return abbreviated;
   }
 
   /**
