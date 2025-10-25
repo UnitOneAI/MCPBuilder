@@ -28,7 +28,7 @@ import {
 import {
   Add as AddIcon,
   PlayArrow as PlayIcon,
-  Stop as StopIcon,
+  Refresh as RefreshIcon,
   Code as CodeIcon,
   Delete as DeleteIcon,
   ExpandMore as ExpandMoreIcon,
@@ -86,25 +86,25 @@ function McpServers() {
     }));
   };
 
-  const deployMutation = useMutation({
+  const buildMutation = useMutation({
     mutationFn: (serverId: string) => apiService.deployServer(serverId),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['mcp-servers'] });
-      enqueueSnackbar(response.data?.message || 'Server deployed successfully', { variant: 'success' });
+      enqueueSnackbar(response.data?.message || 'STDIO server built successfully', { variant: 'success' });
     },
     onError: (error: any) => {
-      enqueueSnackbar(error.response?.data?.error || 'Failed to deploy server', { variant: 'error' });
+      enqueueSnackbar(error.response?.data?.error || 'Failed to build server', { variant: 'error' });
     },
   });
 
-  const stopMutation = useMutation({
-    mutationFn: (serverId: string) => apiService.stopServer(serverId),
+  const rebuildMutation = useMutation({
+    mutationFn: (serverId: string) => apiService.deployServer(serverId),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['mcp-servers'] });
-      enqueueSnackbar(response.data?.message || 'Server stopped successfully', { variant: 'success' });
+      enqueueSnackbar(response.data?.message || 'STDIO server rebuilt successfully', { variant: 'success' });
     },
     onError: (error: any) => {
-      enqueueSnackbar(error.response?.data?.error || 'Failed to stop server', { variant: 'error' });
+      enqueueSnackbar(error.response?.data?.error || 'Failed to rebuild server', { variant: 'error' });
     },
   });
 
@@ -120,15 +120,13 @@ function McpServers() {
   });
 
   const getServerStatus = (server: any) => {
-    // If running, show that first
-    if (server.is_running) {
-      return { label: 'Running', color: 'success' as const };
+    // For STDIO servers, check deployment_status
+    if (server.deployment_status === 'ready') {
+      return { label: 'Ready', color: 'success' as const };
     }
-    // If has been generated but not running
+    // If has been generated but not built yet
     if (server.generated_path) {
-      return server.deployment_status === 'stopped'
-        ? { label: 'Stopped', color: 'warning' as const }
-        : { label: 'Ready', color: 'info' as const };
+      return { label: 'Not Built', color: 'warning' as const };
     }
     // Not generated yet
     return { label: 'Draft', color: 'default' as const };
@@ -467,24 +465,24 @@ function McpServers() {
                       )}
                       {server.status === 'active' && (
                         <>
-                          <Tooltip title="Deploy Server">
+                          <Tooltip title="Build Server">
                             <IconButton
                               size="small"
                               color="success"
-                              onClick={() => deployMutation.mutate(server.id)}
-                              disabled={deployMutation.isPending}
+                              onClick={() => buildMutation.mutate(server.id)}
+                              disabled={buildMutation.isPending || rebuildMutation.isPending}
                             >
                               <PlayIcon />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Stop Server">
+                          <Tooltip title="Rebuild Server">
                             <IconButton
                               size="small"
-                              color="error"
-                              onClick={() => stopMutation.mutate(server.id)}
-                              disabled={stopMutation.isPending}
+                              color="primary"
+                              onClick={() => rebuildMutation.mutate(server.id)}
+                              disabled={buildMutation.isPending || rebuildMutation.isPending}
                             >
-                              <StopIcon />
+                              <RefreshIcon />
                             </IconButton>
                           </Tooltip>
                         </>
@@ -592,24 +590,24 @@ function McpServers() {
                       )}
                       {server.status === 'active' && (
                         <>
-                          <Tooltip title="Deploy Server">
+                          <Tooltip title="Build Server">
                             <IconButton
                               size="small"
                               color="success"
-                              onClick={() => deployMutation.mutate(server.id)}
-                              disabled={deployMutation.isPending}
+                              onClick={() => buildMutation.mutate(server.id)}
+                              disabled={buildMutation.isPending || rebuildMutation.isPending}
                             >
                               <PlayIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Stop Server">
+                          <Tooltip title="Rebuild Server">
                             <IconButton
                               size="small"
-                              color="error"
-                              onClick={() => stopMutation.mutate(server.id)}
-                              disabled={stopMutation.isPending}
+                              color="primary"
+                              onClick={() => rebuildMutation.mutate(server.id)}
+                              disabled={buildMutation.isPending || rebuildMutation.isPending}
                             >
-                              <StopIcon fontSize="small" />
+                              <RefreshIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                         </>
