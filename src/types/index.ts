@@ -67,7 +67,7 @@ export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
 export const DeploymentConfigSchema = z.object({
   id: z.string().optional(),
   mcpServerId: z.string(),
-  status: z.enum(['pending', 'deploying', 'running', 'stopped', 'failed']).default('pending'),
+  status: z.enum(['pending', 'deploying', 'running', 'stopped', 'failed', 'ready']).default('pending'),
   processId: z.number().optional(),
   port: z.number().optional(),
   logs: z.array(z.string()).optional(),

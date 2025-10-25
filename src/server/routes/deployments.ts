@@ -321,7 +321,7 @@ router.post('/:serverId/deploy', async (req, res) => {
         id: deploymentId,
         mcpServerId: req.params.serverId,
         status: 'ready' as const,
-        processId: null,
+        processId: undefined,
         logs: [],
         startedAt: new Date().toISOString(),
       };
@@ -392,13 +392,13 @@ router.post('/:serverId/deploy', async (req, res) => {
       console.log(`[${server.name}] Verifying process stability...`);
       const verification = await verifyProcessStarted(serverProcess.pid!);
 
-      const deploymentStatus = verification.running ? 'running' : 'stopped';
+      const deploymentStatus: 'running' | 'stopped' = verification.running ? 'running' : 'stopped';
 
       const deploymentId = crypto.randomUUID();
       const deploymentData = {
         id: deploymentId,
         mcpServerId: req.params.serverId,
-        status: deploymentStatus as const,
+        status: deploymentStatus,
         processId: serverProcess.pid,
         logs: recentLogs.slice(-50),
         startedAt: new Date().toISOString(),
@@ -494,9 +494,9 @@ router.post('/:serverId/stop', async (req, res) => {
     }
 
     // Kill the process
-    const process = runningProcesses.get(req.params.serverId);
-    if (process) {
-      process.kill('SIGTERM');
+    const childProcess = runningProcesses.get(req.params.serverId);
+    if (childProcess) {
+      childProcess.kill('SIGTERM');
       runningProcesses.delete(req.params.serverId);
       console.log(`[Stop] Sent SIGTERM to process PID ${deployment.processId}`);
     } else {
