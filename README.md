@@ -287,21 +287,32 @@ The portal will automatically warn you when selecting more than 40 endpoints and
 ```
 MCPBuilder/
 ├── src/
-│   ├── server/              # Express backend API
-│   │   ├── routes/          # API endpoints
-│   │   ├── database.ts      # SQLite database operations
-│   │   └── index.ts         # Server entry point
-│   ├── client/              # React frontend
-│   │   ├── components/      # UI components
-│   │   ├── pages/           # Page components
-│   │   └── App.tsx          # Main app
-│   ├── generator/           # MCP generator core
-│   │   ├── McpGenerator.ts  # Code generator
-│   │   └── ApiParser.ts     # API specification parser
-│   ├── templates/           # Handlebars templates for generated code
-│   └── types/               # TypeScript type definitions
-├── generated-servers/       # Generated MCP servers output
-└── data/                    # SQLite database files
+│   ├── server/                      # Express backend API
+│   │   ├── routes/                  # API route handlers
+│   │   │   ├── apiConfigs.ts        # API configuration endpoints
+│   │   │   ├── mcpServers.ts        # MCP server management
+│   │   │   ├── deployments.ts       # Server deployment/build
+│   │   │   └── parser.ts            # OpenAPI/Postman parsers
+│   │   ├── utils/                   # Server utilities
+│   │   │   └── logger.ts            # File-based logging
+│   │   ├── database.ts              # SQLite database operations
+│   │   └── index.ts                 # Server entry point
+│   ├── client/                      # React frontend
+│   │   ├── components/              # Reusable UI components
+│   │   ├── pages/                   # Page components
+│   │   ├── services/                # API service layer
+│   │   ├── assets/                  # Static assets (images, etc.)
+│   │   ├── theme.ts                 # Material-UI theme config
+│   │   └── App.tsx                  # Main app component
+│   ├── generator/                   # MCP generator core
+│   │   ├── McpGenerator.ts          # Code generator
+│   │   ├── ApiParser.ts             # API specification parser
+│   │   └── handlebars-helpers.ts    # Custom Handlebars helpers
+│   ├── templates/                   # Handlebars templates for generated code
+│   └── types/                       # Shared TypeScript type definitions
+├── generated-servers/               # Generated MCP servers output
+├── logs/                            # Server and deployment logs
+└── data/                            # SQLite database files
 ```
 
 ## API Endpoints
@@ -310,25 +321,27 @@ MCPBuilder/
 
 **API Configurations**
 - `GET /api/configs` - List all API configurations
+- `GET /api/configs/:id` - Get API configuration by ID
 - `POST /api/configs` - Create API configuration
 - `PUT /api/configs/:id` - Update configuration
 - `DELETE /api/configs/:id` - Delete configuration
 
 **MCP Servers**
 - `GET /api/servers` - List all MCP servers
+- `GET /api/servers/:id` - Get MCP server by ID
 - `POST /api/servers` - Create MCP server
+- `PUT /api/servers/:id` - Update MCP server
 - `POST /api/servers/:id/generate` - Generate server code
 - `DELETE /api/servers/:id` - Delete server
 
-**Deployments**
+**Deployments (STDIO Build Only)**
 - `GET /api/deployments/server/:serverId` - Get deployment status
-- `POST /api/deployments/:serverId/deploy` - Deploy server
-- `POST /api/deployments/:serverId/stop` - Stop server
+- `POST /api/deployments/:serverId/deploy` - Build STDIO server
+- `POST /api/deployments/:serverId/stop` - Stop deployment process
 
 **Parsers**
-- `POST /api/parser/openapi` - Parse OpenAPI specification
+- `POST /api/parser/openapi` - Parse OpenAPI specification (URL or JSON)
 - `POST /api/parser/postman` - Parse Postman collection
-- `POST /api/parser/documentation` - Parse API documentation
 
 ## Development
 
