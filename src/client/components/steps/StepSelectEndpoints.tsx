@@ -30,22 +30,24 @@ function StepSelectEndpoints({
   selectedEndpoints,
   setSelectedEndpoints,
 }: StepSelectEndpointsProps) {
-  const endpoints = apiConfig?.endpoints || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
+  const endpoints = apiConfig?.endpoints || [];
+
   // Filter endpoints based on search
   const filteredEndpoints = useMemo(() => {
-    if (!searchTerm) return endpoints;
+    const endpointList = apiConfig?.endpoints || [];
+    if (!searchTerm) return endpointList;
     const searchLower = searchTerm.toLowerCase();
-    return endpoints.filter(
+    return endpointList.filter(
       (endpoint: any) =>
         endpoint.path?.toLowerCase().includes(searchLower) ||
         endpoint.method?.toLowerCase().includes(searchLower) ||
         endpoint.description?.toLowerCase().includes(searchLower),
     );
-  }, [endpoints, searchTerm]);
+  }, [apiConfig?.endpoints, searchTerm]);
 
   // Paginate filtered endpoints
   const paginatedEndpoints = useMemo(() => {

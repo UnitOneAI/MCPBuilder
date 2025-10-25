@@ -118,7 +118,7 @@ function McpServers() {
       // Then deploy (install + build)
       return apiService.deployServer(serverId);
     },
-    onSuccess: (response) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
       enqueueSnackbar("STDIO server regenerated and rebuilt successfully", {
         variant: "success",

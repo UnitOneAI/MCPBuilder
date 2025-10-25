@@ -170,15 +170,6 @@ function CreateServer() {
     setActiveStep((prev) => prev - 1);
   };
 
-  const handleReset = () => {
-    setActiveStep(0);
-    setApiConfig(null);
-    setSelectedEndpoints([]);
-    setServerConfig({ transport: "stdio" });
-    setGeneratedServerId(null);
-    setError(null);
-  };
-
   const getStepContent = (step: number) => {
     switch (step) {
       case 0:

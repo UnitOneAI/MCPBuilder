@@ -45,10 +45,10 @@ export class ApiParser {
       if (typeof response.data === "string") {
         try {
           spec = JSON.parse(response.data);
-        } catch (jsonError) {
+        } catch {
           try {
             spec = YAML.parse(response.data);
-          } catch (yamlError) {
+          } catch {
             throw new Error(
               "Invalid OpenAPI specification from URL: must be valid JSON or YAML format",
             );
@@ -62,10 +62,10 @@ export class ApiParser {
       // Try to parse as JSON first, then fall back to YAML
       try {
         spec = JSON.parse(specUrlOrJson);
-      } catch (jsonError) {
+      } catch {
         try {
           spec = YAML.parse(specUrlOrJson);
-        } catch (yamlError) {
+        } catch {
           throw new Error(
             "Invalid OpenAPI specification: must be valid JSON or YAML format",
           );
@@ -154,10 +154,14 @@ export class ApiParser {
           endpoints.push(currentEndpoint);
         }
 
+        const method = methodMatch[1].toUpperCase();
+        const path = methodMatch[2].trim();
+
         currentEndpoint = {
-          method: methodMatch[1].toUpperCase(),
-          path: methodMatch[2].trim(),
+          method,
+          path,
           description: methodMatch[3].trim(),
+          operationId: this.generateOperationId(method, path),
           parameters: [],
         };
         continue;
@@ -602,11 +606,13 @@ export class ApiParser {
             : item.request.url.raw;
 
         const path = this.extractPath(url);
+        const method = item.request.method;
 
         endpoints.push({
           path,
-          method: item.request.method,
+          method,
           description: item.name || "",
+          operationId: this.generateOperationId(method, path),
           parameters: this.extractPostmanParameters(item.request),
         });
       }
@@ -615,6 +621,41 @@ export class ApiParser {
         this.parsePostmanItems(item.item, endpoints);
       }
     }
+  }
+
+  /**
+   * Generate operationId from method and path
+   * e.g., GET /submissions -> getSubmissions
+   * e.g., POST /submissions/{id}/documents -> postSubmissionsIdDocuments
+   */
+  private generateOperationId(method: string, path: string): string {
+    // Convert method to lowercase
+    const methodLower = method.toLowerCase();
+
+    // Clean and convert path to camelCase
+    // Remove leading slash and split by /
+    const pathParts = path
+      .replace(/^\//, "") // Remove leading slash
+      .split("/")
+      .filter((part) => part.length > 0) // Remove empty parts
+      .map((part) => {
+        // Replace path parameters {id} with just "id"
+        if (part.startsWith("{") && part.endsWith("}")) {
+          return part.slice(1, -1);
+        }
+        // Replace hyphens and underscores with spaces for proper casing
+        return part.replace(/[-_]/g, " ");
+      })
+      .map((part) => {
+        // Convert to title case for all parts
+        return part
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join("");
+      })
+      .join("");
+
+    return methodLower + (pathParts || "Root");
   }
 
   /**

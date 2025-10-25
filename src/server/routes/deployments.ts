@@ -11,7 +11,6 @@ import {
   appendLog,
   readLogs,
   rotateLogIfNeeded,
-  deleteServerLogs,
 } from "../utils/logger.js";
 
 const router = express.Router();

@@ -47,6 +47,7 @@ function StepApiConfig({
     if (onParseRequest) {
       onParseRequest(handleParse, canParse, parsing);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canParse, parsing, formData, inputMethod]);
 
   const handleParse = async () => {
@@ -73,7 +74,7 @@ function StepApiConfig({
           if (!parsed.info || !parsed.item) {
             throw new Error("Invalid Postman collection format");
           }
-        } catch (e) {
+        } catch {
           setParseError("Invalid Postman collection JSON format");
           setParsing(false);
           return;
