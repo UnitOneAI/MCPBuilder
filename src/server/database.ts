@@ -306,6 +306,26 @@ export const generatedServersDb = {
       files: JSON.parse(row.files),
     };
   },
+
+  update: (id: string, server: { name: string; path: string; files: string[] }) => {
+    const stmt = db.prepare(`
+      UPDATE generated_servers
+      SET name = ?, path = ?, files = ?
+      WHERE id = ?
+    `);
+
+    return stmt.run(
+      server.name,
+      server.path,
+      JSON.stringify(server.files),
+      id
+    );
+  },
+
+  deleteByServerId: (serverId: string) => {
+    const stmt = db.prepare('DELETE FROM generated_servers WHERE mcp_server_id = ?');
+    return stmt.run(serverId);
+  },
 };
 
 export default db;

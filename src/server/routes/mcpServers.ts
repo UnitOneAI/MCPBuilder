@@ -240,6 +240,24 @@ router.post('/:id/generate', async (req, res) => {
       });
     }
 
+    // Check if server already generated
+    const existingGenerated = generatedServersDb.findByServerId(req.params.id);
+
+    // If already generated, regenerate (idempotent operation)
+    if (existingGenerated) {
+      console.log(`[${server.name}] Server already generated, regenerating...`);
+
+      // Delete existing generated files
+      const fs = await import('fs/promises');
+      try {
+        await fs.rm(existingGenerated.path, { recursive: true, force: true });
+        console.log(`[${server.name}] Deleted existing generated files at ${existingGenerated.path}`);
+      } catch (fsError: any) {
+        console.error(`[${server.name}] Failed to delete existing files:`, fsError.message);
+        // Continue with regeneration even if deletion fails
+      }
+    }
+
     // Generate server
     const outputDir = path.join(__dirname, '../../../generated-servers');
     const result = await generator.generate({
@@ -266,14 +284,25 @@ router.post('/:id/generate', async (req, res) => {
       transport: 'stdio', // Always use STDIO transport
     });
 
-    // Save generated server info
-    generatedServersDb.create({
-      id: result.id,
-      mcpServerId: server.id,
-      name: result.name,
-      path: result.path,
-      files: result.files,
-    });
+    // Save or update generated server info (idempotent)
+    if (existingGenerated) {
+      // Update existing record
+      console.log(`[${server.name}] Updating generated server record`);
+      generatedServersDb.update(existingGenerated.id, {
+        name: result.name,
+        path: result.path,
+        files: result.files,
+      });
+    } else {
+      // Create new record
+      generatedServersDb.create({
+        id: result.id,
+        mcpServerId: server.id,
+        name: result.name,
+        path: result.path,
+        files: result.files,
+      });
+    }
 
     // Update server status
     mcpServersDb.update(req.params.id, {
@@ -284,7 +313,9 @@ router.post('/:id/generate', async (req, res) => {
     res.json({
       success: true,
       data: result,
-      message: 'MCP server generated successfully',
+      message: existingGenerated
+        ? 'MCP server regenerated successfully (idempotent operation)'
+        : 'MCP server generated successfully',
     });
   } catch (error: any) {
     console.error('Generation error:', error);
