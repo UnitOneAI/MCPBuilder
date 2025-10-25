@@ -70,7 +70,6 @@ export const DeploymentConfigSchema = z.object({
   status: z.enum(['pending', 'deploying', 'running', 'stopped', 'failed', 'ready']).default('pending'),
   processId: z.number().optional(),
   port: z.number().optional(),
-  logs: z.array(z.string()).optional(),
   startedAt: z.string().optional(),
   stoppedAt: z.string().optional(),
 });

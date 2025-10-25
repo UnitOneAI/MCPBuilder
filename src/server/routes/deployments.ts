@@ -3,6 +3,7 @@ import { deploymentsDb, mcpServersDb, generatedServersDb } from '../database.js'
 import { spawn, ChildProcess } from 'child_process';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { appendLog, readLogs, rotateLogIfNeeded, deleteServerLogs } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -322,9 +323,11 @@ router.post('/:serverId/deploy', async (req, res) => {
         mcpServerId: req.params.serverId,
         status: 'ready' as const,
         processId: undefined,
-        logs: [],
         startedAt: new Date().toISOString(),
       };
+
+      // Log deployment success to file
+      appendLog(req.params.serverId, deploymentId, 'STDIO server built and ready for MCP client connection');
 
       deploymentsDb.create(deploymentData);
 
@@ -341,6 +344,9 @@ router.post('/:serverId/deploy', async (req, res) => {
       // HTTP/SSE: Start the server process
       console.log(`[${server.name}] Starting HTTP/SSE server...`);
 
+      // Generate deployment ID early so we can log to it
+      const deploymentId = crypto.randomUUID();
+
       const serverProcess = spawn('npm', ['start'], {
         cwd: generatedServer.path,
         env: {
@@ -349,25 +355,23 @@ router.post('/:serverId/deploy', async (req, res) => {
         },
       });
 
-      const recentLogs: string[] = [];
-      const MAX_LOG_LINES = 100;
-
+      // Log to file instead of in-memory array
       serverProcess.stdout?.on('data', (data) => {
         const log = data.toString();
-        recentLogs.push(log);
-        if (recentLogs.length > MAX_LOG_LINES) {
-          recentLogs.shift();
-        }
+        appendLog(req.params.serverId, deploymentId, `STDOUT: ${log}`);
         console.log(`[${server.name}] ${log}`);
+
+        // Rotate log file if needed
+        rotateLogIfNeeded(req.params.serverId, deploymentId);
       });
 
       serverProcess.stderr?.on('data', (data) => {
         const log = data.toString();
-        recentLogs.push(log);
-        if (recentLogs.length > MAX_LOG_LINES) {
-          recentLogs.shift();
-        }
+        appendLog(req.params.serverId, deploymentId, `STDERR: ${log}`);
         console.error(`[${server.name}] ERROR: ${log}`);
+
+        // Rotate log file if needed
+        rotateLogIfNeeded(req.params.serverId, deploymentId);
       });
 
       serverProcess.on('error', (error) => {
@@ -394,16 +398,17 @@ router.post('/:serverId/deploy', async (req, res) => {
 
       const deploymentStatus: 'running' | 'stopped' = verification.running ? 'running' : 'stopped';
 
-      const deploymentId = crypto.randomUUID();
       const deploymentData = {
         id: deploymentId,
         mcpServerId: req.params.serverId,
         status: deploymentStatus,
         processId: serverProcess.pid,
-        logs: recentLogs.slice(-50),
         startedAt: new Date().toISOString(),
         ...(deploymentStatus === 'stopped' ? { stoppedAt: new Date().toISOString() } : {}),
       };
+
+      // Log verification result
+      appendLog(req.params.serverId, deploymentId, `Process verification: ${verification.message}`);
 
       deploymentsDb.create(deploymentData);
 
@@ -424,6 +429,9 @@ router.post('/:serverId/deploy', async (req, res) => {
       } else {
         console.warn(`[${server.name}] Process exited immediately after spawn (PID: ${serverProcess.pid})`);
 
+        // Read last 10 lines from log file for error response
+        const errorLogs = readLogs(req.params.serverId, deploymentId, 10);
+
         return res.status(500).json({
           success: false,
           error: 'Server process started but exited immediately. This usually indicates a configuration error. Check the server logs for details.',
@@ -431,7 +439,7 @@ router.post('/:serverId/deploy', async (req, res) => {
             id: deploymentId,
             status: 'stopped',
             processId: serverProcess.pid,
-            logs: recentLogs.slice(-10),
+            logs: errorLogs,
           },
         });
       }

@@ -8,6 +8,7 @@ import apiConfigsRouter from './routes/apiConfigs.js';
 import mcpServersRouter from './routes/mcpServers.js';
 import deploymentsRouter from './routes/deployments.js';
 import parserRouter from './routes/parser.js';
+import { cleanupOldLogs } from './utils/logger.js';
 
 dotenv.config();
 
@@ -56,6 +57,19 @@ const cleanupOrphanedApiConfigs = () => {
   }
 };
 cleanupOrphanedApiConfigs();
+
+// Cleanup old log files (run daily)
+const scheduleLogCleanup = () => {
+  // Run cleanup on startup
+  cleanupOldLogs();
+
+  // Run cleanup every 24 hours
+  setInterval(() => {
+    console.log('Running scheduled log cleanup...');
+    cleanupOldLogs();
+  }, 24 * 60 * 60 * 1000); // 24 hours
+};
+scheduleLogCleanup();
 
 // API Routes
 app.use('/api/configs', apiConfigsRouter);

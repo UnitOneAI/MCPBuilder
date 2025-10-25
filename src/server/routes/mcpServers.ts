@@ -4,6 +4,7 @@ import { McpServerConfigSchema } from '../../types/index.js';
 import { McpGenerator } from '../../generator/McpGenerator.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { deleteServerLogs } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,6 +176,10 @@ router.delete('/:id', async (req, res) => {
       deploymentsDb.delete(deployment.id);
       console.log(`Deleted deployment record for server ${req.params.id}`);
     }
+
+    // Delete all log files for this server
+    deleteServerLogs(req.params.id);
+    console.log(`Deleted log files for server ${req.params.id}`);
 
     // Check if there's generated code to delete
     const generatedServer = generatedServersDb.findByServerId(req.params.id);

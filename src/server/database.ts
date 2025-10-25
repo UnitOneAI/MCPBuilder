@@ -58,7 +58,6 @@ export function initializeDatabase() {
       status TEXT NOT NULL DEFAULT 'pending',
       process_id INTEGER,
       port INTEGER,
-      logs TEXT,
       started_at TEXT,
       stopped_at TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -231,8 +230,8 @@ export const mcpServersDb = {
 export const deploymentsDb = {
   create: (deployment: Partial<DeploymentConfig> & { id?: string; mcpServerId: string }) => {
     const stmt = db.prepare(`
-      INSERT INTO deployments (id, mcp_server_id, status, process_id, port, logs, started_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO deployments (id, mcp_server_id, status, process_id, port, started_at)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     return stmt.run(
@@ -241,7 +240,6 @@ export const deploymentsDb = {
       deployment.status || 'pending',
       deployment.processId || null,
       deployment.port || null,
-      deployment.logs ? JSON.stringify(deployment.logs) : null,
       deployment.startedAt || null
     );
   },
@@ -256,16 +254,13 @@ export const deploymentsDb = {
     const row = stmt.get(serverId) as any;
     if (!row) return null;
 
-    return {
-      ...row,
-      logs: row.logs ? JSON.parse(row.logs) : [],
-    };
+    return row;
   },
 
   update: (id: string, deployment: Partial<DeploymentConfig>) => {
     const stmt = db.prepare(`
       UPDATE deployments
-      SET status = ?, process_id = ?, port = ?, logs = ?, stopped_at = ?
+      SET status = ?, process_id = ?, port = ?, stopped_at = ?
       WHERE id = ?
     `);
 
@@ -273,7 +268,6 @@ export const deploymentsDb = {
       deployment.status,
       deployment.processId || null,
       deployment.port || null,
-      deployment.logs ? JSON.stringify(deployment.logs) : null,
       deployment.stoppedAt || null,
       id
     );
