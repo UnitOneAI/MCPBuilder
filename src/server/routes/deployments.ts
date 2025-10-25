@@ -29,8 +29,8 @@ function getErrorMessage(error: unknown): string {
  * Creates a sanitized environment object for spawned processes.
  * Security: Only includes safe, non-sensitive environment variables.
  */
-function createSafeEnvironment(additionalVars: Record<string, string> = {}): NodeJS.ProcessEnv {
-  const safeEnv: NodeJS.ProcessEnv = {};
+function createSafeEnvironment(additionalVars: Record<string, string> = {}): Record<string, string | undefined> {
+  const safeEnv: Record<string, string | undefined> = {};
 
   // Copy only safe environment variables
   for (const key of SAFE_ENV_VARS) {
