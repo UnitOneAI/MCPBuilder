@@ -4,7 +4,7 @@
 
 Generate MCP servers from OpenAPI/Swagger specs, Postman collections, or API documentation. Make your APIs accessible to AI assistants through natural language interactions.
 
-[![Node.js](https://img.shields.io/badge/Node.js-18.0+-green)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/Node.js-20.0+-green)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.2+-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-blue)](https://reactjs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -73,7 +73,7 @@ Please contact the **UNITONE team** at [https://unitone.ai](https://unitone.ai) 
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - npm >= 9.0.0
 
 ### Installation
@@ -395,7 +395,7 @@ npm run format
 
 **Server won't start**
 - Check that ports 3000 and 5173 are available
-- Ensure Node.js >= 18.0.0 is installed
+- Ensure Node.js >= 20.0.0 is installed
 - Try `npm install` again
 
 **Generated server build fails**
