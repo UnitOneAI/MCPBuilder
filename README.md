@@ -19,8 +19,31 @@ Generate MCP servers from OpenAPI/Swagger specs, Postman collections, or API doc
 - **Template Engine**: Handlebars
 - **Type Safety**: TypeScript + Zod
 
+## ⚠️ Important: Local Development Tool
+
+**UNITONE MCP Builder is designed for local development use only.**
+
+This is the **open source version** intended for single-user local development environments. The admin portal should **NOT be deployed to public servers** as it:
+- Has no authentication system
+- Can fetch arbitrary URLs when parsing OpenAPI specifications (by design for functionality)
+- Is optimized for local, trusted developer environments
+
+**For Production/Public Deployments:**
+
+If you require:
+- Hosted/managed MCP server generation
+- Public server deployment with authentication
+- Extended security features
+- Enterprise support
+- Team collaboration features
+
+Please contact the **UNITONE team** at [https://unitone.ai](https://unitone.ai) for our enterprise solutions.
+
+> **Note**: Only the **generated MCP servers** are designed for production deployment. The builder application itself should remain in your local development environment.
+
 ## Table of Contents
 
+- [Important: Local Development Tool](#️-important-local-development-tool)
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Admin Portal Guide](#admin-portal-guide)
