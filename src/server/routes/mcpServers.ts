@@ -256,6 +256,16 @@ router.post('/:id/generate', async (req, res) => {
         console.error(`[${server.name}] Failed to delete existing files:`, fsError.message);
         // Continue with regeneration even if deletion fails
       }
+
+      // Reset deployment phase so rebuild will run install and build again
+      const existingDeployment = deploymentsDb.findByServerId(req.params.id);
+      if (existingDeployment && existingDeployment.status === 'ready') {
+        console.log(`[${server.name}] Resetting deployment phase to pending for rebuild`);
+        deploymentsDb.update(existingDeployment.id, {
+          ...existingDeployment,
+          phase: 'pending',
+        });
+      }
     }
 
     // Generate server

@@ -98,10 +98,15 @@ function McpServers() {
   });
 
   const rebuildMutation = useMutation({
-    mutationFn: (serverId: string) => apiService.deployServer(serverId),
+    mutationFn: async (serverId: string) => {
+      // First regenerate the server code
+      await apiService.generateServer(serverId);
+      // Then deploy (install + build)
+      return apiService.deployServer(serverId);
+    },
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['mcp-servers'] });
-      enqueueSnackbar(response.data?.message || 'STDIO server rebuilt successfully', { variant: 'success' });
+      enqueueSnackbar('STDIO server regenerated and rebuilt successfully', { variant: 'success' });
     },
     onError: (error: any) => {
       enqueueSnackbar(error.response?.data?.error || 'Failed to rebuild server', { variant: 'error' });
@@ -465,15 +470,17 @@ function McpServers() {
                       )}
                       {server.status === 'active' && (
                         <>
-                          <Tooltip title="Build Server">
-                            <IconButton
-                              size="small"
-                              color="success"
-                              onClick={() => buildMutation.mutate(server.id)}
-                              disabled={buildMutation.isPending || rebuildMutation.isPending}
-                            >
-                              <PlayIcon />
-                            </IconButton>
+                          <Tooltip title={server.deployment_status === 'ready' ? 'Server already built - use Rebuild' : 'Build Server'}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="success"
+                                onClick={() => buildMutation.mutate(server.id)}
+                                disabled={server.deployment_status === 'ready' || buildMutation.isPending || rebuildMutation.isPending}
+                              >
+                                <PlayIcon />
+                              </IconButton>
+                            </span>
                           </Tooltip>
                           <Tooltip title="Rebuild Server">
                             <IconButton
@@ -590,15 +597,17 @@ function McpServers() {
                       )}
                       {server.status === 'active' && (
                         <>
-                          <Tooltip title="Build Server">
-                            <IconButton
-                              size="small"
-                              color="success"
-                              onClick={() => buildMutation.mutate(server.id)}
-                              disabled={buildMutation.isPending || rebuildMutation.isPending}
-                            >
-                              <PlayIcon fontSize="small" />
-                            </IconButton>
+                          <Tooltip title={server.deployment_status === 'ready' ? 'Server already built - use Rebuild' : 'Build Server'}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="success"
+                                onClick={() => buildMutation.mutate(server.id)}
+                                disabled={server.deployment_status === 'ready' || buildMutation.isPending || rebuildMutation.isPending}
+                              >
+                                <PlayIcon fontSize="small" />
+                              </IconButton>
+                            </span>
                           </Tooltip>
                           <Tooltip title="Rebuild Server">
                             <IconButton
