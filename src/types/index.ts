@@ -68,6 +68,7 @@ export const DeploymentConfigSchema = z.object({
   id: z.string().optional(),
   mcpServerId: z.string(),
   status: z.enum(['pending', 'deploying', 'running', 'stopped', 'failed', 'ready']).default('pending'),
+  phase: z.enum(['pending', 'installing', 'installed', 'building', 'built', 'starting', 'ready', 'running', 'stopped', 'failed']).default('pending'),
   processId: z.number().optional(),
   port: z.number().optional(),
   startedAt: z.string().optional(),

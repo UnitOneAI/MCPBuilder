@@ -56,6 +56,7 @@ export function initializeDatabase() {
       id TEXT PRIMARY KEY,
       mcp_server_id TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
+      phase TEXT NOT NULL DEFAULT 'pending',
       process_id INTEGER,
       port INTEGER,
       started_at TEXT,
@@ -230,14 +231,15 @@ export const mcpServersDb = {
 export const deploymentsDb = {
   create: (deployment: Partial<DeploymentConfig> & { id?: string; mcpServerId: string }) => {
     const stmt = db.prepare(`
-      INSERT INTO deployments (id, mcp_server_id, status, process_id, port, started_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO deployments (id, mcp_server_id, status, phase, process_id, port, started_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     return stmt.run(
       deployment.id || crypto.randomUUID(),
       deployment.mcpServerId,
       deployment.status || 'pending',
+      deployment.phase || 'pending',
       deployment.processId || null,
       deployment.port || null,
       deployment.startedAt || null
@@ -260,12 +262,13 @@ export const deploymentsDb = {
   update: (id: string, deployment: Partial<DeploymentConfig>) => {
     const stmt = db.prepare(`
       UPDATE deployments
-      SET status = ?, process_id = ?, port = ?, stopped_at = ?
+      SET status = ?, phase = ?, process_id = ?, port = ?, stopped_at = ?
       WHERE id = ?
     `);
 
     return stmt.run(
       deployment.status,
+      deployment.phase || 'pending',
       deployment.processId || null,
       deployment.port || null,
       deployment.stoppedAt || null,

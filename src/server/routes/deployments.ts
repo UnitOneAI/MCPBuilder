@@ -195,6 +195,7 @@ router.get('/server/:serverId', (req, res) => {
         deploymentsDb.update(deployment.id, {
           ...deployment,
           status: 'stopped',
+          phase: 'stopped' as const,
           stoppedAt: new Date().toISOString(),
         });
 
@@ -241,7 +242,7 @@ router.post('/:serverId/deploy', async (req, res) => {
     }
 
     // Check if already deployed
-    const existingDeployment = deploymentsDb.findByServerId(req.params.serverId);
+    let existingDeployment = deploymentsDb.findByServerId(req.params.serverId);
 
     // For HTTP/SSE: prevent if status is 'running' (can't deploy while running)
     // For STDIO: allow rebuild anytime (no running process to conflict with)
@@ -254,6 +255,29 @@ router.post('/:serverId/deploy', async (req, res) => {
       });
     }
 
+    // Determine deployment ID and starting phase (idempotent logic)
+    let deploymentId: string;
+    let startPhase: string = 'pending';
+
+    if (existingDeployment && (existingDeployment.status === 'ready' || existingDeployment.status === 'failed')) {
+      // Resume existing deployment from last successful phase
+      deploymentId = existingDeployment.id;
+      startPhase = existingDeployment.phase || 'pending';
+      console.log(`[${server.name}] Resuming deployment from phase: ${startPhase}`);
+    } else {
+      // Create new deployment
+      deploymentId = crypto.randomUUID();
+      const deploymentData = {
+        id: deploymentId,
+        mcpServerId: req.params.serverId,
+        status: 'deploying' as const,
+        phase: 'pending' as const,
+        startedAt: new Date().toISOString(),
+      };
+      deploymentsDb.create(deploymentData);
+      console.log(`[${server.name}] Starting new deployment`);
+    }
+
     // Security: Validate package.json before proceeding
     const packageJsonPath = path.join(generatedServer.path, 'package.json');
     console.log(`[${server.name}] Validating package.json for security...`);
@@ -264,9 +288,11 @@ router.post('/:serverId/deploy', async (req, res) => {
       NODE_ENV: 'production',
     });
 
-    // Phase 1: Install dependencies with security hardening
-    console.log(`[${server.name}] Installing dependencies (with security restrictions)...`);
-    try {
+    // Phase 1: Install dependencies (skip if already installed)
+    if (startPhase === 'pending' || startPhase === 'installing') {
+      console.log(`[${server.name}] Installing dependencies (with security restrictions)...`);
+      deploymentsDb.update(deploymentId, { status: 'deploying', phase: 'installing' });
+      try {
       await spawnWithTimeout(
         'npm',
         [
@@ -282,18 +308,25 @@ router.post('/:serverId/deploy', async (req, res) => {
         },
         OPERATION_TIMEOUTS.INSTALL
       );
-      console.log(`[${server.name}] Dependencies installed successfully`);
-    } catch (error) {
-      console.error(`[${server.name}] Installation failed:`, error);
-      return res.status(500).json({
-        success: false,
-        error: `Failed to install dependencies: ${getErrorMessage(error)}`,
-      });
+        console.log(`[${server.name}] Dependencies installed successfully`);
+        deploymentsDb.update(deploymentId, { status: 'deploying', phase: 'installed' });
+      } catch (error) {
+        console.error(`[${server.name}] Installation failed:`, error);
+        deploymentsDb.update(deploymentId, { status: 'failed', phase: 'installing' });
+        return res.status(500).json({
+          success: false,
+          error: `Failed to install dependencies: ${getErrorMessage(error)}`,
+        });
+      }
+    } else {
+      console.log(`[${server.name}] Skipping install phase (already completed)`);
     }
 
-    // Phase 2: Build the server
-    console.log(`[${server.name}] Building server...`);
-    try {
+    // Phase 2: Build the server (skip if already built)
+    if (startPhase === 'pending' || startPhase === 'installing' || startPhase === 'installed' || startPhase === 'building') {
+      console.log(`[${server.name}] Building server...`);
+      deploymentsDb.update(deploymentId, { status: 'deploying', phase: 'building' });
+      try{
       await spawnWithTimeout(
         'npm',
         ['run', 'build'],
@@ -303,13 +336,18 @@ router.post('/:serverId/deploy', async (req, res) => {
         },
         OPERATION_TIMEOUTS.BUILD
       );
-      console.log(`[${server.name}] Build completed successfully`);
-    } catch (error) {
-      console.error(`[${server.name}] Build failed:`, error);
-      return res.status(500).json({
-        success: false,
-        error: `Failed to build server: ${getErrorMessage(error)}`,
-      });
+        console.log(`[${server.name}] Build completed successfully`);
+        deploymentsDb.update(deploymentId, { status: 'deploying', phase: 'built' });
+      } catch (error) {
+        console.error(`[${server.name}] Build failed:`, error);
+        deploymentsDb.update(deploymentId, { status: 'failed', phase: 'building' });
+        return res.status(500).json({
+          success: false,
+          error: `Failed to build server: ${getErrorMessage(error)}`,
+        });
+      }
+    } else {
+      console.log(`[${server.name}] Skipping build phase (already completed)`);
     }
 
     // Transport-aware Phase 3: STDIO vs HTTP/SSE
@@ -317,19 +355,14 @@ router.post('/:serverId/deploy', async (req, res) => {
       // STDIO: Build complete - server ready for MCP client to spawn
       console.log(`[${server.name}] STDIO server built and ready for MCP client connection`);
 
-      const deploymentId = crypto.randomUUID();
-      const deploymentData = {
-        id: deploymentId,
-        mcpServerId: req.params.serverId,
+      // Update to ready status
+      deploymentsDb.update(deploymentId, {
         status: 'ready' as const,
-        processId: undefined,
-        startedAt: new Date().toISOString(),
-      };
+        phase: 'ready' as const,
+      });
 
       // Log deployment success to file
       appendLog(req.params.serverId, deploymentId, 'STDIO server built and ready for MCP client connection');
-
-      deploymentsDb.create(deploymentData);
 
       return res.json({
         success: true,
@@ -343,9 +376,7 @@ router.post('/:serverId/deploy', async (req, res) => {
     } else {
       // HTTP/SSE: Start the server process
       console.log(`[${server.name}] Starting HTTP/SSE server...`);
-
-      // Generate deployment ID early so we can log to it
-      const deploymentId = crypto.randomUUID();
+      deploymentsDb.update(deploymentId, { status: 'deploying', phase: 'starting' });
 
       const serverProcess = spawn('npm', ['start'], {
         cwd: generatedServer.path,
@@ -387,6 +418,7 @@ router.post('/:serverId/deploy', async (req, res) => {
           deploymentsDb.update(deployment.id, {
             ...deployment,
             status: 'stopped',
+            phase: 'stopped' as const,
             stoppedAt: new Date().toISOString(),
           });
         }
@@ -396,23 +428,17 @@ router.post('/:serverId/deploy', async (req, res) => {
       console.log(`[${server.name}] Verifying process stability...`);
       const verification = await verifyProcessStarted(serverProcess.pid!);
 
-      const deploymentStatus: 'running' | 'stopped' = verification.running ? 'running' : 'stopped';
-
-      const deploymentData = {
-        id: deploymentId,
-        mcpServerId: req.params.serverId,
-        status: deploymentStatus,
-        processId: serverProcess.pid,
-        startedAt: new Date().toISOString(),
-        ...(deploymentStatus === 'stopped' ? { stoppedAt: new Date().toISOString() } : {}),
-      };
-
       // Log verification result
       appendLog(req.params.serverId, deploymentId, `Process verification: ${verification.message}`);
 
-      deploymentsDb.create(deploymentData);
-
       if (verification.running) {
+        // Update deployment to running phase
+        deploymentsDb.update(deploymentId, {
+          status: 'running' as const,
+          phase: 'running' as const,
+          processId: serverProcess.pid,
+        });
+
         runningProcesses.set(req.params.serverId, serverProcess);
         console.log(`[${server.name}] HTTP/SSE server started successfully (PID: ${serverProcess.pid})`);
 
@@ -427,6 +453,14 @@ router.post('/:serverId/deploy', async (req, res) => {
           message: 'HTTP/SSE server deployed and verified running. Installation, build, and startup completed with security hardening.',
         });
       } else {
+        // Update deployment to failed phase
+        deploymentsDb.update(deploymentId, {
+          status: 'failed' as const,
+          phase: 'failed' as const,
+          processId: serverProcess.pid,
+          stoppedAt: new Date().toISOString(),
+        });
+
         console.warn(`[${server.name}] Process exited immediately after spawn (PID: ${serverProcess.pid})`);
 
         // Read last 10 lines from log file for error response
@@ -437,7 +471,7 @@ router.post('/:serverId/deploy', async (req, res) => {
           error: 'Server process started but exited immediately. This usually indicates a configuration error. Check the server logs for details.',
           data: {
             id: deploymentId,
-            status: 'stopped',
+            status: 'failed',
             processId: serverProcess.pid,
             logs: errorLogs,
           },
@@ -491,6 +525,7 @@ router.post('/:serverId/stop', async (req, res) => {
         deploymentsDb.update(deployment.id, {
           ...deployment,
           status: 'stopped',
+          phase: 'stopped' as const,
           stoppedAt: new Date().toISOString(),
         });
       }
@@ -517,10 +552,11 @@ router.post('/:serverId/stop', async (req, res) => {
       }
     }
 
-    // Update deployment status
+    // Update deployment status and phase
     deploymentsDb.update(deployment.id, {
       ...deployment,
       status: 'stopped',
+      phase: 'stopped' as const,
       stoppedAt: new Date().toISOString(),
     });
 
