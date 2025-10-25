@@ -1,9 +1,9 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import McpServers from './pages/McpServers';
-import CreateServer from './pages/CreateServer';
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import Layout from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
+import McpServers from "./pages/McpServers";
+import CreateServer from "./pages/CreateServer";
 
 function App() {
   return (

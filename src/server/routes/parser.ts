@@ -1,18 +1,18 @@
-import express from 'express';
-import { ApiParser } from '../../generator/ApiParser.js';
+import express from "express";
+import { ApiParser } from "../../generator/ApiParser.js";
 
 const router = express.Router();
 const parser = new ApiParser();
 
 // Parse OpenAPI specification
-router.post('/openapi', async (req, res) => {
+router.post("/openapi", async (req, res) => {
   try {
     const { spec } = req.body;
 
     if (!spec) {
       return res.status(400).json({
         success: false,
-        error: 'OpenAPI specification is required',
+        error: "OpenAPI specification is required",
       });
     }
 
@@ -21,7 +21,7 @@ router.post('/openapi', async (req, res) => {
     res.json({
       success: true,
       data: result,
-      message: 'OpenAPI specification parsed successfully',
+      message: "OpenAPI specification parsed successfully",
     });
   } catch (error: any) {
     res.status(400).json({
@@ -32,14 +32,14 @@ router.post('/openapi', async (req, res) => {
 });
 
 // Parse API documentation
-router.post('/documentation', async (req, res) => {
+router.post("/documentation", async (req, res) => {
   try {
     const { documentation } = req.body;
 
     if (!documentation) {
       return res.status(400).json({
         success: false,
-        error: 'API documentation is required',
+        error: "API documentation is required",
       });
     }
 
@@ -48,7 +48,7 @@ router.post('/documentation', async (req, res) => {
     res.json({
       success: true,
       data: result,
-      message: 'API documentation parsed successfully',
+      message: "API documentation parsed successfully",
     });
   } catch (error: any) {
     res.status(400).json({
@@ -59,14 +59,14 @@ router.post('/documentation', async (req, res) => {
 });
 
 // Parse Postman collection
-router.post('/postman', async (req, res) => {
+router.post("/postman", async (req, res) => {
   try {
     const { collection } = req.body;
 
     if (!collection) {
       return res.status(400).json({
         success: false,
-        error: 'Postman collection is required',
+        error: "Postman collection is required",
       });
     }
 
@@ -92,7 +92,7 @@ router.post('/postman', async (req, res) => {
     res.json({
       success: true,
       data: result,
-      message: 'Postman collection parsed successfully',
+      message: "Postman collection parsed successfully",
       warning,
     });
   } catch (error: any) {

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
   Drawer,
@@ -15,25 +15,36 @@ import {
   IconButton,
   useMediaQuery,
   useTheme,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Dashboard as DashboardIcon,
   Add as AddIcon,
   GitHub as GitHubIcon,
   Menu as MenuIcon,
-} from '@mui/icons-material';
-import mcpLogo from '../assets/mcp-logo.png';
-import mcpLogoInv from '../assets/mcp-logo-inv.png';
-import unitoneLogo from '../assets/UNITONE_logo.png';
-import discordIcon from '../assets/discord-icon.svg';
-import Footer from './Footer';
+} from "@mui/icons-material";
+import mcpLogo from "../assets/mcp-logo.png";
+import mcpLogoInv from "../assets/mcp-logo-inv.png";
+import unitoneLogo from "../assets/UNITONE_logo.png";
+import discordIcon from "../assets/discord-icon.svg";
+import Footer from "./Footer";
 
 const drawerWidth = 280;
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/', type: 'icon' },
-  { text: 'MCP Servers', icon: mcpLogo, iconInv: mcpLogoInv, path: '/mcp-servers', type: 'image' },
-  { text: 'Create Server', icon: <AddIcon />, path: '/create-server', type: 'icon' },
+  { text: "Dashboard", icon: <DashboardIcon />, path: "/", type: "icon" },
+  {
+    text: "MCP Servers",
+    icon: mcpLogo,
+    iconInv: mcpLogoInv,
+    path: "/mcp-servers",
+    type: "image",
+  },
+  {
+    text: "Create Server",
+    icon: <AddIcon />,
+    path: "/create-server",
+    type: "icon",
+  },
 ];
 
 interface LayoutProps {
@@ -44,7 +55,7 @@ function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleDrawerToggle = () => {
@@ -54,7 +65,7 @@ function Layout({ children }: LayoutProps) {
   const drawerContent = (
     <>
       <Toolbar />
-      <Box sx={{ overflow: 'auto', mt: 2, flexGrow: 1 }}>
+      <Box sx={{ overflow: "auto", mt: 2, flexGrow: 1 }}>
         <List>
           {menuItems.map((item) => (
             <ListItem key={item.text} disablePadding sx={{ mb: 0.5, px: 2 }}>
@@ -66,32 +77,37 @@ function Layout({ children }: LayoutProps) {
                 }}
                 sx={{
                   borderRadius: 2,
-                  '&.Mui-selected': {
-                    backgroundColor: '#020618',
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: '#030a24',
+                  "&.Mui-selected": {
+                    backgroundColor: "#020618",
+                    color: "white",
+                    "&:hover": {
+                      backgroundColor: "#030a24",
                     },
-                    '& .MuiListItemIcon-root': {
-                      color: 'white',
+                    "& .MuiListItemIcon-root": {
+                      color: "white",
                     },
                   },
                 }}
               >
                 <ListItemIcon
                   sx={{
-                    color: location.pathname === item.path ? 'white' : 'inherit',
+                    color:
+                      location.pathname === item.path ? "white" : "inherit",
                   }}
                 >
-                  {item.type === 'image' ? (
+                  {item.type === "image" ? (
                     <Box
                       component="img"
-                      src={location.pathname === item.path ? (item.iconInv as string) : (item.icon as string)}
+                      src={
+                        location.pathname === item.path
+                          ? (item.iconInv as string)
+                          : (item.icon as string)
+                      }
                       alt={item.text}
                       sx={{
                         width: 24,
                         height: 24,
-                        objectFit: 'contain',
+                        objectFit: "contain",
                       }}
                     />
                   ) : (
@@ -105,8 +121,21 @@ function Layout({ children }: LayoutProps) {
         </List>
       </Box>
 
-      <Box sx={{ px: 2, pb: 2, borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
-        <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ px: 2, mb: 1, display: 'block' }}>
+      <Box
+        sx={{
+          px: 2,
+          pb: 2,
+          borderTop: "1px solid",
+          borderColor: "divider",
+          pt: 2,
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          fontWeight="600"
+          sx={{ px: 2, mb: 1, display: "block" }}
+        >
           Help & Support
         </Typography>
         <List dense>
@@ -119,8 +148,8 @@ function Layout({ children }: LayoutProps) {
               sx={{
                 borderRadius: 1,
                 py: 0.5,
-                '&:hover': {
-                  backgroundColor: 'action.hover',
+                "&:hover": {
+                  backgroundColor: "action.hover",
                 },
               }}
             >
@@ -132,13 +161,13 @@ function Layout({ children }: LayoutProps) {
                   sx={{
                     width: 20,
                     height: 20,
-                    filter: 'grayscale(100%) brightness(1.1)',
+                    filter: "grayscale(100%) brightness(1.1)",
                   }}
                 />
               </ListItemIcon>
               <ListItemText
                 primary="Discord"
-                primaryTypographyProps={{ variant: 'body2' }}
+                primaryTypographyProps={{ variant: "body2" }}
               />
             </ListItemButton>
           </ListItem>
@@ -151,8 +180,8 @@ function Layout({ children }: LayoutProps) {
               sx={{
                 borderRadius: 1,
                 py: 0.5,
-                '&:hover': {
-                  backgroundColor: 'action.hover',
+                "&:hover": {
+                  backgroundColor: "action.hover",
                 },
               }}
             >
@@ -161,7 +190,7 @@ function Layout({ children }: LayoutProps) {
               </ListItemIcon>
               <ListItemText
                 primary="GitHub"
-                primaryTypographyProps={{ variant: 'body2' }}
+                primaryTypographyProps={{ variant: "body2" }}
               />
             </ListItemButton>
           </ListItem>
@@ -176,7 +205,7 @@ function Layout({ children }: LayoutProps) {
         position="fixed"
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          bgcolor: '#020618',
+          bgcolor: "#020618",
           borderRadius: 0,
         }}
       >
@@ -198,21 +227,26 @@ function Layout({ children }: LayoutProps) {
             sx={{
               height: 32,
               mr: 2,
-              objectFit: 'contain',
+              objectFit: "contain",
             }}
           />
-          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 700, color: '#ffffff' }}>
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{ fontWeight: 700, color: "#ffffff" }}
+          >
             UNITONE
           </Typography>
-          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center" }}>
             <Typography
               variant="h6"
               noWrap
               component="div"
               sx={{
                 fontWeight: 700,
-                color: '#ffffff',
-                display: { xs: 'none', sm: 'block' }
+                color: "#ffffff",
+                display: { xs: "none", sm: "block" },
               }}
             >
               MCP BUILDER
@@ -225,13 +259,13 @@ function Layout({ children }: LayoutProps) {
             target="_blank"
             rel="noopener noreferrer"
             sx={{
-              color: '#ffffff',
-              borderColor: '#ffffff',
-              textTransform: 'none',
-              display: { xs: 'none', md: 'flex' },
-              '&:hover': {
-                borderColor: '#ffffff',
-                bgcolor: 'rgba(255, 255, 255, 0.1)',
+              color: "#ffffff",
+              borderColor: "#ffffff",
+              textTransform: "none",
+              display: { xs: "none", md: "flex" },
+              "&:hover": {
+                borderColor: "#ffffff",
+                bgcolor: "rgba(255, 255, 255, 0.1)",
               },
             }}
           >
@@ -249,12 +283,12 @@ function Layout({ children }: LayoutProps) {
           keepMounted: true,
         }}
         sx={{
-          display: { xs: 'block', lg: 'none' },
-          '& .MuiDrawer-paper': {
+          display: { xs: "block", lg: "none" },
+          "& .MuiDrawer-paper": {
             width: drawerWidth,
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
           },
         }}
       >
@@ -265,14 +299,14 @@ function Layout({ children }: LayoutProps) {
       <Drawer
         variant="permanent"
         sx={{
-          display: { xs: 'none', lg: 'block' },
+          display: { xs: "none", lg: "block" },
           width: drawerWidth,
           flexShrink: 0,
-          '& .MuiDrawer-paper': {
+          "& .MuiDrawer-paper": {
             width: drawerWidth,
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
           },
         }}
       >
@@ -283,9 +317,9 @@ function Layout({ children }: LayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: '100vh',
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100vh",
           ml: { xs: 0, lg: `${drawerWidth}px` },
         }}
       >

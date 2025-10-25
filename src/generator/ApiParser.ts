@@ -1,6 +1,10 @@
-import axios from 'axios';
-import YAML from 'yaml';
-import type { ApiConfig, OpenAPISpec, OpenAPIOperation } from '../types/index.js';
+import axios from "axios";
+import YAML from "yaml";
+import type {
+  ApiConfig,
+  OpenAPISpec,
+  OpenAPIOperation,
+} from "../types/index.js";
 
 export class ApiParser {
   private currentSpec?: OpenAPISpec; // Store current spec for reference resolution
@@ -10,18 +14,18 @@ export class ApiParser {
    * Removes newlines, collapses whitespace, escapes quotes, and decodes HTML entities
    */
   private sanitizeDescription(description: string | undefined): string {
-    if (!description) return '';
+    if (!description) return "";
 
     return description
-      .replace(/&lt;/g, '<')              // Decode HTML entities
-      .replace(/&gt;/g, '>')
+      .replace(/&lt;/g, "<") // Decode HTML entities
+      .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
       .replace(/&#x27;/g, "'")
-      .replace(/&#x60;/g, '`')
-      .replace(/&amp;/g, '&')
-      .replace(/\r?\n/g, ' ')             // Replace newlines with spaces
-      .replace(/\s+/g, ' ')               // Collapse multiple spaces into one
-      .replace(/'/g, "\\'")               // Escape single quotes
+      .replace(/&#x60;/g, "`")
+      .replace(/&amp;/g, "&")
+      .replace(/\r?\n/g, " ") // Replace newlines with spaces
+      .replace(/\s+/g, " ") // Collapse multiple spaces into one
+      .replace(/'/g, "\\'") // Escape single quotes
       .trim();
   }
 
@@ -32,20 +36,22 @@ export class ApiParser {
     let spec: OpenAPISpec;
 
     // Check if it's a URL or JSON/YAML string
-    if (specUrlOrJson.startsWith('http')) {
+    if (specUrlOrJson.startsWith("http")) {
       const response = await axios.get(specUrlOrJson, {
-        responseType: 'text', // Always get as text first
+        responseType: "text", // Always get as text first
       });
 
       // Parse the response (could be JSON or YAML)
-      if (typeof response.data === 'string') {
+      if (typeof response.data === "string") {
         try {
           spec = JSON.parse(response.data);
         } catch (jsonError) {
           try {
             spec = YAML.parse(response.data);
           } catch (yamlError) {
-            throw new Error('Invalid OpenAPI specification from URL: must be valid JSON or YAML format');
+            throw new Error(
+              "Invalid OpenAPI specification from URL: must be valid JSON or YAML format",
+            );
           }
         }
       } else {
@@ -60,7 +66,9 @@ export class ApiParser {
         try {
           spec = YAML.parse(specUrlOrJson);
         } catch (yamlError) {
-          throw new Error('Invalid OpenAPI specification: must be valid JSON or YAML format');
+          throw new Error(
+            "Invalid OpenAPI specification: must be valid JSON or YAML format",
+          );
         }
       }
     }
@@ -75,7 +83,7 @@ export class ApiParser {
     const apiConfig: Partial<ApiConfig> = {
       name: spec.info.title,
       description: spec.info.description,
-      baseUrl: spec.servers?.[0]?.url || '',
+      baseUrl: spec.servers?.[0]?.url || "",
       endpoints: [],
       authType: this.detectAuthType(spec),
     };
@@ -83,21 +91,22 @@ export class ApiParser {
     // Parse endpoints
     for (const [path, pathItem] of Object.entries(spec.paths)) {
       for (const [method, operation] of Object.entries(pathItem)) {
-        if (!['get', 'post', 'put', 'delete', 'patch'].includes(method)) continue;
+        if (!["get", "post", "put", "delete", "patch"].includes(method))
+          continue;
 
         const op = operation as OpenAPIOperation;
 
         // Combine summary and description for better AI context
-        let description = '';
-        const summary = op.summary?.trim() || '';
-        const desc = op.description?.trim() || '';
+        let description = "";
+        const summary = op.summary?.trim() || "";
+        const desc = op.description?.trim() || "";
 
         if (summary && desc && summary !== desc) {
           // Both exist and are different - combine them
           description = `${summary}. ${desc}`;
         } else {
           // Use whichever exists, preferring description
-          description = desc || summary || '';
+          description = desc || summary || "";
         }
 
         // Sanitize description for use in generated code
@@ -105,7 +114,12 @@ export class ApiParser {
 
         apiConfig.endpoints!.push({
           path,
-          method: method.toUpperCase() as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+          method: method.toUpperCase() as
+            | "GET"
+            | "POST"
+            | "PUT"
+            | "DELETE"
+            | "PATCH",
           description,
           operationId: op.operationId,
           parameters: this.extractParameters(op),
@@ -123,8 +137,8 @@ export class ApiParser {
     // This is a simple heuristic parser
     // In production, you might want to use an LLM to extract structured data
 
-    const endpoints: ApiConfig['endpoints'] = [];
-    const lines = documentation.split('\n');
+    const endpoints: ApiConfig["endpoints"] = [];
+    const lines = documentation.split("\n");
 
     let currentEndpoint: any = null;
 
@@ -132,7 +146,9 @@ export class ApiParser {
       const trimmedLine = line.trim();
 
       // Detect HTTP method and path (e.g., GET /api/users)
-      const methodMatch = trimmedLine.match(/^(GET|POST|PUT|DELETE|PATCH)\s+(.+?)\s*[-–—]\s*(.+)/i);
+      const methodMatch = trimmedLine.match(
+        /^(GET|POST|PUT|DELETE|PATCH)\s+(.+?)\s*[-–—]\s*(.+)/i,
+      );
       if (methodMatch) {
         if (currentEndpoint) {
           endpoints.push(currentEndpoint);
@@ -148,12 +164,14 @@ export class ApiParser {
       }
 
       // Detect parameters (supports various formats)
-      const paramMatch = trimmedLine.match(/[-*]\s*`?(\w+)`?\s*\((\w+)\)\s*[-:–—]\s*(.+)/);
+      const paramMatch = trimmedLine.match(
+        /[-*]\s*`?(\w+)`?\s*\((\w+)\)\s*[-:–—]\s*(.+)/,
+      );
       if (paramMatch && currentEndpoint) {
         currentEndpoint.parameters.push({
           name: paramMatch[1],
           type: paramMatch[2],
-          required: trimmedLine.toLowerCase().includes('required'),
+          required: trimmedLine.toLowerCase().includes("required"),
           description: this.sanitizeDescription(paramMatch[3]),
         });
       }
@@ -171,11 +189,13 @@ export class ApiParser {
   /**
    * Parse Postman collection
    */
-  async parsePostmanCollection(collectionUrlOrJson: string): Promise<Partial<ApiConfig>> {
+  async parsePostmanCollection(
+    collectionUrlOrJson: string,
+  ): Promise<Partial<ApiConfig>> {
     let collection: any;
 
     // Check if it's a URL or JSON string
-    if (collectionUrlOrJson.startsWith('http')) {
+    if (collectionUrlOrJson.startsWith("http")) {
       const response = await axios.get(collectionUrlOrJson);
       collection = response.data;
     } else {
@@ -186,7 +206,7 @@ export class ApiParser {
       name: collection.info.name,
       description: collection.info.description,
       endpoints: [],
-      baseUrl: '', // Default to empty string
+      baseUrl: "", // Default to empty string
     };
 
     // Detect authentication from collection-level auth or first request
@@ -200,9 +220,10 @@ export class ApiParser {
     if (collection.item && collection.item.length > 0) {
       const firstRequest = this.findFirstRequest(collection.item);
       if (firstRequest && firstRequest.request.url) {
-        const url = typeof firstRequest.request.url === 'string'
-          ? firstRequest.request.url
-          : firstRequest.request.url.raw;
+        const url =
+          typeof firstRequest.request.url === "string"
+            ? firstRequest.request.url
+            : firstRequest.request.url.raw;
         const extractedUrl = this.extractBaseUrl(url);
         if (extractedUrl) {
           apiConfig.baseUrl = extractedUrl;
@@ -221,47 +242,59 @@ export class ApiParser {
    */
   private validateSpec(spec: any): void {
     if (!spec.openapi && !spec.swagger) {
-      throw new Error('Invalid OpenAPI specification: missing required field "openapi" or "swagger"');
+      throw new Error(
+        'Invalid OpenAPI specification: missing required field "openapi" or "swagger"',
+      );
     }
 
     if (!spec.info) {
-      throw new Error('Invalid OpenAPI specification: missing required field "info"');
+      throw new Error(
+        'Invalid OpenAPI specification: missing required field "info"',
+      );
     }
 
     if (!spec.info.title) {
-      throw new Error('Invalid OpenAPI specification: missing required field "info.title"');
+      throw new Error(
+        'Invalid OpenAPI specification: missing required field "info.title"',
+      );
     }
 
     if (!spec.info.version) {
-      throw new Error('Invalid OpenAPI specification: missing required field "info.version"');
+      throw new Error(
+        'Invalid OpenAPI specification: missing required field "info.version"',
+      );
     }
 
     if (!spec.paths && !spec.components && !spec.webhooks) {
-      throw new Error('Invalid OpenAPI specification: must have at least one of "paths", "components", or "webhooks"');
+      throw new Error(
+        'Invalid OpenAPI specification: must have at least one of "paths", "components", or "webhooks"',
+      );
     }
   }
 
   /**
    * Detect authentication type from OpenAPI spec
    */
-  private detectAuthType(spec: OpenAPISpec): 'none' | 'bearer' | 'apiKey' | 'oauth2' {
-    if (!spec.components?.securitySchemes) return 'none';
+  private detectAuthType(
+    spec: OpenAPISpec,
+  ): "none" | "bearer" | "apiKey" | "oauth2" {
+    if (!spec.components?.securitySchemes) return "none";
 
     const schemes = spec.components.securitySchemes;
 
     for (const scheme of Object.values(schemes)) {
-      if (scheme.type === 'http' && scheme.scheme === 'bearer') {
-        return 'bearer';
+      if (scheme.type === "http" && scheme.scheme === "bearer") {
+        return "bearer";
       }
-      if (scheme.type === 'apiKey') {
-        return 'apiKey';
+      if (scheme.type === "apiKey") {
+        return "apiKey";
       }
-      if (scheme.type === 'oauth2') {
-        return 'oauth2';
+      if (scheme.type === "oauth2") {
+        return "oauth2";
       }
     }
 
-    return 'none';
+    return "none";
   }
 
   /**
@@ -271,7 +304,7 @@ export class ApiParser {
     if (!this.currentSpec) return null;
 
     // Remove the leading '#/' and split by '/'
-    const parts = ref.replace(/^#\//, '').split('/');
+    const parts = ref.replace(/^#\//, "").split("/");
 
     let current: any = this.currentSpec;
     for (const part of parts) {
@@ -293,7 +326,7 @@ export class ApiParser {
         let resolvedParam = param;
 
         // Resolve $ref if present
-        if ('$ref' in param && typeof param.$ref === 'string') {
+        if ("$ref" in param && typeof param.$ref === "string") {
           const resolved = this.resolveRef(param.$ref);
           if (!resolved) continue; // Skip if we can't resolve
           resolvedParam = resolved;
@@ -304,7 +337,7 @@ export class ApiParser {
           params.push({
             name: resolvedParam.name,
             in: resolvedParam.in,
-            type: resolvedParam.schema?.type || 'string',
+            type: resolvedParam.schema?.type || "string",
             required: resolvedParam.required || false,
             description: this.sanitizeDescription(resolvedParam.description),
             enum: resolvedParam.schema?.enum,
@@ -317,9 +350,9 @@ export class ApiParser {
     if (operation.requestBody?.content) {
       // Try different content types
       const contentTypes = [
-        'application/json',
-        'application/x-www-form-urlencoded',
-        'multipart/form-data'
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data",
       ];
 
       for (const contentType of contentTypes) {
@@ -328,13 +361,17 @@ export class ApiParser {
           let schema = mediaType.schema;
 
           // Resolve $ref if present
-          if ('$ref' in schema && typeof schema.$ref === 'string') {
+          if ("$ref" in schema && typeof schema.$ref === "string") {
             schema = this.resolveRef(schema.$ref);
           }
 
           // Extract parameters from schema with circular reference protection
           const visitedRefs = new Set<string>();
-          const bodyParams = this.extractSchemaProperties(schema, '', visitedRefs);
+          const bodyParams = this.extractSchemaProperties(
+            schema,
+            "",
+            visitedRefs,
+          );
           params.push(...bodyParams);
           break; // Use first available content type
         }
@@ -348,7 +385,12 @@ export class ApiParser {
    * Extract properties from schema with support for composition keywords and nested objects
    * Includes circular reference protection to prevent infinite loops
    */
-  private extractSchemaProperties(schema: any, prefix: string, visitedRefs: Set<string> = new Set(), depth: number = 0): any[] {
+  private extractSchemaProperties(
+    schema: any,
+    prefix: string,
+    visitedRefs: Set<string> = new Set(),
+    depth: number = 0,
+  ): any[] {
     if (!schema) return [];
 
     // Limit nesting depth to prevent excessive recursion (even without circular refs)
@@ -358,13 +400,13 @@ export class ApiParser {
     const params: any[] = [];
 
     // Handle composition keywords: allOf, oneOf, anyOf
-    for (const compositionKey of ['allOf', 'oneOf', 'anyOf']) {
+    for (const compositionKey of ["allOf", "oneOf", "anyOf"]) {
       if (schema[compositionKey] && Array.isArray(schema[compositionKey])) {
         for (const subSchema of schema[compositionKey]) {
           let resolved = subSchema;
 
           // Resolve $ref if present
-          if ('$ref' in subSchema && typeof subSchema.$ref === 'string') {
+          if ("$ref" in subSchema && typeof subSchema.$ref === "string") {
             const refKey = subSchema.$ref;
 
             // Skip if we've already visited this reference
@@ -376,14 +418,21 @@ export class ApiParser {
 
           // Recursively extract properties from composed schemas
           if (resolved) {
-            params.push(...this.extractSchemaProperties(resolved, prefix, visitedRefs, depth + 1));
+            params.push(
+              ...this.extractSchemaProperties(
+                resolved,
+                prefix,
+                visitedRefs,
+                depth + 1,
+              ),
+            );
           }
         }
       }
     }
 
     // Handle object properties
-    if (schema.type === 'object' && schema.properties) {
+    if (schema.type === "object" && schema.properties) {
       const requiredFields = schema.required || [];
 
       for (const [propName, propSchema] of Object.entries(schema.properties)) {
@@ -392,16 +441,18 @@ export class ApiParser {
 
         // Resolve $ref if present in property
         let resolvedProp = prop;
-        if ('$ref' in prop && typeof prop.$ref === 'string') {
+        if ("$ref" in prop && typeof prop.$ref === "string") {
           const refKey = prop.$ref;
 
           // Skip if circular reference
           if (visitedRefs.has(refKey)) {
             params.push({
               name: fullName,
-              type: 'object',
+              type: "object",
               required: requiredFields.includes(propName),
-              description: this.sanitizeDescription(prop.description || `Circular reference to ${refKey}`),
+              description: this.sanitizeDescription(
+                prop.description || `Circular reference to ${refKey}`,
+              ),
             });
             continue;
           }
@@ -411,25 +462,35 @@ export class ApiParser {
         }
 
         // Handle nested objects recursively
-        if (resolvedProp.type === 'object' && resolvedProp.properties) {
-          params.push(...this.extractSchemaProperties(resolvedProp, fullName, visitedRefs, depth + 1));
+        if (resolvedProp.type === "object" && resolvedProp.properties) {
+          params.push(
+            ...this.extractSchemaProperties(
+              resolvedProp,
+              fullName,
+              visitedRefs,
+              depth + 1,
+            ),
+          );
         }
         // Handle arrays
-        else if (resolvedProp.type === 'array' && resolvedProp.items) {
+        else if (resolvedProp.type === "array" && resolvedProp.items) {
           let itemSchema = resolvedProp.items;
 
           // Resolve $ref in array items
-          if ('$ref' in itemSchema && typeof itemSchema.$ref === 'string') {
+          if ("$ref" in itemSchema && typeof itemSchema.$ref === "string") {
             const refKey = itemSchema.$ref;
 
             // Skip if circular reference in array items
             if (visitedRefs.has(refKey)) {
               params.push({
                 name: fullName,
-                type: 'array',
-                items: 'object',
+                type: "array",
+                items: "object",
                 required: requiredFields.includes(propName),
-                description: this.sanitizeDescription(resolvedProp.description || `Array with circular reference to ${refKey}`),
+                description: this.sanitizeDescription(
+                  resolvedProp.description ||
+                    `Array with circular reference to ${refKey}`,
+                ),
               });
               continue;
             }
@@ -439,14 +500,21 @@ export class ApiParser {
           }
 
           // If array items are objects, extract their properties
-          if (itemSchema.type === 'object' && itemSchema.properties) {
-            params.push(...this.extractSchemaProperties(itemSchema, `${fullName}[]`, visitedRefs, depth + 1));
+          if (itemSchema.type === "object" && itemSchema.properties) {
+            params.push(
+              ...this.extractSchemaProperties(
+                itemSchema,
+                `${fullName}[]`,
+                visitedRefs,
+                depth + 1,
+              ),
+            );
           } else {
             // Simple array type
             params.push({
               name: fullName,
-              type: 'array',
-              items: itemSchema.type || 'string',
+              type: "array",
+              items: itemSchema.type || "string",
               required: requiredFields.includes(propName),
               description: this.sanitizeDescription(resolvedProp.description),
               enum: itemSchema.enum,
@@ -457,7 +525,7 @@ export class ApiParser {
         else {
           params.push({
             name: fullName,
-            type: resolvedProp.type || 'string',
+            type: resolvedProp.type || "string",
             required: requiredFields.includes(propName),
             description: this.sanitizeDescription(resolvedProp.description),
             enum: resolvedProp.enum,
@@ -467,11 +535,11 @@ export class ApiParser {
       }
     }
     // Handle array type at schema level
-    else if (schema.type === 'array' && schema.items) {
+    else if (schema.type === "array" && schema.items) {
       let itemSchema = schema.items;
 
       // Resolve $ref in array items
-      if ('$ref' in itemSchema && typeof itemSchema.$ref === 'string') {
+      if ("$ref" in itemSchema && typeof itemSchema.$ref === "string") {
         const refKey = itemSchema.$ref;
 
         if (!visitedRefs.has(refKey)) {
@@ -480,8 +548,15 @@ export class ApiParser {
         }
       }
 
-      if (itemSchema.type === 'object' && itemSchema.properties) {
-        params.push(...this.extractSchemaProperties(itemSchema, prefix ? `${prefix}[]` : '[]', visitedRefs, depth + 1));
+      if (itemSchema.type === "object" && itemSchema.properties) {
+        params.push(
+          ...this.extractSchemaProperties(
+            itemSchema,
+            prefix ? `${prefix}[]` : "[]",
+            visitedRefs,
+            depth + 1,
+          ),
+        );
       }
     }
 
@@ -511,7 +586,7 @@ export class ApiParser {
       return `${parsed.protocol}//${parsed.host}`;
     } catch {
       // If URL parsing fails (e.g., contains variables like {{baseUrl}}), return empty string
-      return '';
+      return "";
     }
   }
 
@@ -521,16 +596,17 @@ export class ApiParser {
   private parsePostmanItems(items: any[], endpoints: any[]): void {
     for (const item of items) {
       if (item.request) {
-        const url = typeof item.request.url === 'string'
-          ? item.request.url
-          : item.request.url.raw;
+        const url =
+          typeof item.request.url === "string"
+            ? item.request.url
+            : item.request.url.raw;
 
         const path = this.extractPath(url);
 
         endpoints.push({
           path,
           method: item.request.method,
-          description: item.name || '',
+          description: item.name || "",
           parameters: this.extractPostmanParameters(item.request),
         });
       }
@@ -554,21 +630,21 @@ export class ApiParser {
       let path = url;
 
       // Remove variables like {{baseUrl}}, {{host}}, etc.
-      path = path.replace(/\{\{[^}]+\}\}/g, '');
+      path = path.replace(/\{\{[^}]+\}\}/g, "");
 
       // If it starts with http/https, try to extract pathname
-      if (path.startsWith('http://') || path.startsWith('https://')) {
-        const parts = path.split('/');
-        path = '/' + parts.slice(3).join('/');
+      if (path.startsWith("http://") || path.startsWith("https://")) {
+        const parts = path.split("/");
+        path = "/" + parts.slice(3).join("/");
       }
 
       // Ensure it starts with /
-      if (!path.startsWith('/')) {
-        path = '/' + path;
+      if (!path.startsWith("/")) {
+        path = "/" + path;
       }
 
       // Clean up double slashes
-      path = path.replace(/\/+/g, '/');
+      path = path.replace(/\/+/g, "/");
 
       return path;
     }
@@ -585,7 +661,7 @@ export class ApiParser {
       for (const param of request.url.query) {
         params.push({
           name: param.key,
-          type: 'string',
+          type: "string",
           required: !param.disabled,
           description: this.sanitizeDescription(param.description),
         });
@@ -593,7 +669,7 @@ export class ApiParser {
     }
 
     // Body parameters
-    if (request.body?.mode === 'raw') {
+    if (request.body?.mode === "raw") {
       try {
         const body = JSON.parse(request.body.raw);
         for (const [key, value] of Object.entries(body)) {
@@ -601,7 +677,7 @@ export class ApiParser {
             name: key,
             type: typeof value,
             required: true,
-            description: '',
+            description: "",
           });
         }
       } catch {
@@ -616,65 +692,72 @@ export class ApiParser {
    * Detect authentication type from Postman collection
    * Checks collection-level auth and first request auth
    */
-  private detectPostmanAuth(collection: any): { type: 'none' | 'bearer' | 'apiKey' | 'oauth2'; config?: Record<string, string> } {
+  private detectPostmanAuth(collection: any): {
+    type: "none" | "bearer" | "apiKey" | "oauth2";
+    config?: Record<string, string>;
+  } {
     // Check collection-level auth first
     let auth = collection.auth;
 
     // Check if collection-level auth has detailed config
-    const hasDetailedConfig = auth && (
-      (auth.type === 'apikey' && auth.apikey && auth.apikey.length > 0) ||
-      (auth.type === 'bearer' && auth.bearer) ||
-      (auth.type === 'oauth2' && auth.oauth2)
-    );
+    const hasDetailedConfig =
+      auth &&
+      ((auth.type === "apikey" && auth.apikey && auth.apikey.length > 0) ||
+        (auth.type === "bearer" && auth.bearer) ||
+        (auth.type === "oauth2" && auth.oauth2));
 
     // If no collection-level auth OR no detailed config, check first request
-    if ((!auth || auth.type === 'noauth' || !hasDetailedConfig) && collection.item && collection.item.length > 0) {
+    if (
+      (!auth || auth.type === "noauth" || !hasDetailedConfig) &&
+      collection.item &&
+      collection.item.length > 0
+    ) {
       const firstRequest = this.findFirstRequest(collection.item);
       if (firstRequest?.request?.auth) {
         auth = firstRequest.request.auth;
       }
     }
 
-    if (!auth || auth.type === 'noauth') {
-      return { type: 'none' };
+    if (!auth || auth.type === "noauth") {
+      return { type: "none" };
     }
 
     // Map Postman auth types to our types
     switch (auth.type) {
-      case 'bearer':
+      case "bearer":
         return {
-          type: 'bearer',
-          config: { headerName: 'Authorization' }
+          type: "bearer",
+          config: { headerName: "Authorization" },
         };
 
-      case 'apikey': {
+      case "apikey": {
         // Extract the key name from Postman's apikey config
         // apikey is an array of objects with key-value pairs
         const apikeyConfig = auth.apikey || [];
-        const keyItem = apikeyConfig.find((item: any) => item.key === 'key');
-        const inItem = apikeyConfig.find((item: any) => item.key === 'in');
+        const keyItem = apikeyConfig.find((item: any) => item.key === "key");
+        const inItem = apikeyConfig.find((item: any) => item.key === "in");
 
-        const headerName = keyItem?.value || 'X-API-Key';
-        const location = inItem?.value || 'header';
+        const headerName = keyItem?.value || "X-API-Key";
+        const location = inItem?.value || "header";
 
         return {
-          type: 'apiKey',
+          type: "apiKey",
           config: {
             headerName,
-            location
-          }
+            location,
+          },
         };
       }
 
-      case 'oauth2':
+      case "oauth2":
         return {
-          type: 'oauth2',
-          config: { headerName: 'Authorization' }
+          type: "oauth2",
+          config: { headerName: "Authorization" },
         };
 
       default:
         // For other types, default to none
-        return { type: 'none' };
+        return { type: "none" };
     }
   }
 }

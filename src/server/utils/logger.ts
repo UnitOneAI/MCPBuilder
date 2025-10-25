@@ -1,12 +1,13 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Log directory configuration
-const LOG_BASE_DIR = process.env.LOG_DIR || path.join(__dirname, '../../../logs');
+const LOG_BASE_DIR =
+  process.env.LOG_DIR || path.join(__dirname, "../../../logs");
 const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB max per log file
 const MAX_LOG_AGE_DAYS = 30; // Keep logs for 30 days
 
@@ -34,13 +35,17 @@ export function getLogFilePath(serverId: string, deploymentId: string): string {
 /**
  * Appends a log entry to the deployment log file
  */
-export function appendLog(serverId: string, deploymentId: string, message: string): void {
+export function appendLog(
+  serverId: string,
+  deploymentId: string,
+  message: string,
+): void {
   try {
     const logFilePath = getLogFilePath(serverId, deploymentId);
     const timestamp = new Date().toISOString();
     const logEntry = `[${timestamp}] ${message}\n`;
 
-    fs.appendFileSync(logFilePath, logEntry, 'utf-8');
+    fs.appendFileSync(logFilePath, logEntry, "utf-8");
   } catch (error) {
     console.error(`Failed to write log for ${deploymentId}:`, error);
   }
@@ -52,7 +57,11 @@ export function appendLog(serverId: string, deploymentId: string, message: strin
  * @param deploymentId Deployment ID
  * @param lines Number of lines to read from the end (default: all)
  */
-export function readLogs(serverId: string, deploymentId: string, lines?: number): string[] {
+export function readLogs(
+  serverId: string,
+  deploymentId: string,
+  lines?: number,
+): string[] {
   try {
     const logFilePath = getLogFilePath(serverId, deploymentId);
 
@@ -60,8 +69,8 @@ export function readLogs(serverId: string, deploymentId: string, lines?: number)
       return [];
     }
 
-    const content = fs.readFileSync(logFilePath, 'utf-8');
-    const allLines = content.split('\n').filter(line => line.trim() !== '');
+    const content = fs.readFileSync(logFilePath, "utf-8");
+    const allLines = content.split("\n").filter((line) => line.trim() !== "");
 
     if (lines && lines > 0) {
       // Return last N lines
@@ -78,7 +87,10 @@ export function readLogs(serverId: string, deploymentId: string, lines?: number)
 /**
  * Rotates a log file if it exceeds the maximum size
  */
-export function rotateLogIfNeeded(serverId: string, deploymentId: string): void {
+export function rotateLogIfNeeded(
+  serverId: string,
+  deploymentId: string,
+): void {
   try {
     const logFilePath = getLogFilePath(serverId, deploymentId);
 
@@ -135,7 +147,7 @@ export function cleanupOldLogs(): void {
       }
     }
   } catch (error) {
-    console.error('Failed to cleanup old logs:', error);
+    console.error("Failed to cleanup old logs:", error);
   }
 }
 

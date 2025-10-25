@@ -1,13 +1,18 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import type { ApiConfig, McpServerConfig, DeploymentConfig } from '../types/index.js';
+import Database from "better-sqlite3";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import type {
+  ApiConfig,
+  McpServerConfig,
+  DeploymentConfig,
+} from "../types/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data/mcp-generator.db');
+const dbPath =
+  process.env.DB_PATH || path.join(__dirname, "../../data/mcp-generator.db");
 
 // Ensure data directory exists
 const dataDir = path.dirname(dbPath);
@@ -19,7 +24,7 @@ if (!fs.existsSync(dataDir)) {
 export const db: Database.Database = new Database(dbPath);
 
 // Enable foreign keys
-db.pragma('foreign_keys = ON');
+db.pragma("foreign_keys = ON");
 
 // Initialize database schema
 export function initializeDatabase() {
@@ -81,7 +86,7 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
   `);
 
-  console.log('Database initialized successfully');
+  console.log("Database initialized successfully");
 }
 
 // API Configs
@@ -97,15 +102,17 @@ export const apiConfigsDb = {
       config.name,
       config.description || null,
       config.baseUrl,
-      config.authType || 'none',
+      config.authType || "none",
       config.authConfig ? JSON.stringify(config.authConfig) : null,
       config.openApiSpec || null,
-      config.endpoints ? JSON.stringify(config.endpoints) : null
+      config.endpoints ? JSON.stringify(config.endpoints) : null,
     );
   },
 
   findAll: () => {
-    const stmt = db.prepare('SELECT * FROM api_configs ORDER BY created_at DESC');
+    const stmt = db.prepare(
+      "SELECT * FROM api_configs ORDER BY created_at DESC",
+    );
     const rows = stmt.all();
     return rows.map((row: any) => ({
       ...row,
@@ -115,7 +122,7 @@ export const apiConfigsDb = {
   },
 
   findById: (id: string) => {
-    const stmt = db.prepare('SELECT * FROM api_configs WHERE id = ?');
+    const stmt = db.prepare("SELECT * FROM api_configs WHERE id = ?");
     const row = stmt.get(id) as any;
     if (!row) return null;
 
@@ -138,23 +145,25 @@ export const apiConfigsDb = {
       config.name,
       config.description || null,
       config.baseUrl,
-      config.authType || 'none',
+      config.authType || "none",
       config.authConfig ? JSON.stringify(config.authConfig) : null,
       config.openApiSpec || null,
       config.endpoints ? JSON.stringify(config.endpoints) : null,
-      id
+      id,
     );
   },
 
   delete: (id: string) => {
-    const stmt = db.prepare('DELETE FROM api_configs WHERE id = ?');
+    const stmt = db.prepare("DELETE FROM api_configs WHERE id = ?");
     return stmt.run(id);
   },
 };
 
 // MCP Servers
 export const mcpServersDb = {
-  create: (server: Partial<McpServerConfig> & { id?: string; apiConfigId: string }) => {
+  create: (
+    server: Partial<McpServerConfig> & { id?: string; apiConfigId: string },
+  ) => {
     const stmt = db.prepare(`
       INSERT INTO mcp_servers (id, name, description, api_config_id, transport, http_config, tools, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -165,10 +174,10 @@ export const mcpServersDb = {
       server.name,
       server.description || null,
       server.apiConfigId,
-      server.transport || 'stdio',
+      server.transport || "stdio",
       null, // http_config kept for backward compatibility but not used
       server.tools ? JSON.stringify(server.tools) : null,
-      server.status || 'draft'
+      server.status || "draft",
     );
   },
 
@@ -213,23 +222,28 @@ export const mcpServersDb = {
     return stmt.run(
       server.name,
       server.description || null,
-      server.transport || 'stdio',
+      server.transport || "stdio",
       null, // http_config kept for backward compatibility but not used
       server.tools ? JSON.stringify(server.tools) : null,
-      server.status || 'draft',
-      id
+      server.status || "draft",
+      id,
     );
   },
 
   delete: (id: string) => {
-    const stmt = db.prepare('DELETE FROM mcp_servers WHERE id = ?');
+    const stmt = db.prepare("DELETE FROM mcp_servers WHERE id = ?");
     return stmt.run(id);
   },
 };
 
 // Deployments
 export const deploymentsDb = {
-  create: (deployment: Partial<DeploymentConfig> & { id?: string; mcpServerId: string }) => {
+  create: (
+    deployment: Partial<DeploymentConfig> & {
+      id?: string;
+      mcpServerId: string;
+    },
+  ) => {
     const stmt = db.prepare(`
       INSERT INTO deployments (id, mcp_server_id, status, phase, process_id, port, started_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -238,11 +252,11 @@ export const deploymentsDb = {
     return stmt.run(
       deployment.id || crypto.randomUUID(),
       deployment.mcpServerId,
-      deployment.status || 'pending',
-      deployment.phase || 'pending',
+      deployment.status || "pending",
+      deployment.phase || "pending",
       deployment.processId || null,
       deployment.port || null,
-      deployment.startedAt || null
+      deployment.startedAt || null,
     );
   },
 
@@ -268,23 +282,29 @@ export const deploymentsDb = {
 
     return stmt.run(
       deployment.status,
-      deployment.phase || 'pending',
+      deployment.phase || "pending",
       deployment.processId || null,
       deployment.port || null,
       deployment.stoppedAt || null,
-      id
+      id,
     );
   },
 
   delete: (id: string) => {
-    const stmt = db.prepare('DELETE FROM deployments WHERE id = ?');
+    const stmt = db.prepare("DELETE FROM deployments WHERE id = ?");
     return stmt.run(id);
   },
 };
 
 // Generated Servers
 export const generatedServersDb = {
-  create: (server: { id?: string; mcpServerId: string; name: string; path: string; files: string[] }) => {
+  create: (server: {
+    id?: string;
+    mcpServerId: string;
+    name: string;
+    path: string;
+    files: string[];
+  }) => {
     const stmt = db.prepare(`
       INSERT INTO generated_servers (id, mcp_server_id, name, path, files)
       VALUES (?, ?, ?, ?, ?)
@@ -295,12 +315,14 @@ export const generatedServersDb = {
       server.mcpServerId,
       server.name,
       server.path,
-      JSON.stringify(server.files)
+      JSON.stringify(server.files),
     );
   },
 
   findByServerId: (serverId: string) => {
-    const stmt = db.prepare('SELECT * FROM generated_servers WHERE mcp_server_id = ?');
+    const stmt = db.prepare(
+      "SELECT * FROM generated_servers WHERE mcp_server_id = ?",
+    );
     const row = stmt.get(serverId) as any;
     if (!row) return null;
 
@@ -310,23 +332,23 @@ export const generatedServersDb = {
     };
   },
 
-  update: (id: string, server: { name: string; path: string; files: string[] }) => {
+  update: (
+    id: string,
+    server: { name: string; path: string; files: string[] },
+  ) => {
     const stmt = db.prepare(`
       UPDATE generated_servers
       SET name = ?, path = ?, files = ?
       WHERE id = ?
     `);
 
-    return stmt.run(
-      server.name,
-      server.path,
-      JSON.stringify(server.files),
-      id
-    );
+    return stmt.run(server.name, server.path, JSON.stringify(server.files), id);
   },
 
   deleteByServerId: (serverId: string) => {
-    const stmt = db.prepare('DELETE FROM generated_servers WHERE mcp_server_id = ?');
+    const stmt = db.prepare(
+      "DELETE FROM generated_servers WHERE mcp_server_id = ?",
+    );
     return stmt.run(serverId);
   },
 };

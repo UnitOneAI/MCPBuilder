@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogTitle,
@@ -6,7 +6,7 @@ import {
   DialogContentText,
   DialogActions,
   Button,
-} from '@mui/material';
+} from "@mui/material";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -16,7 +16,7 @@ interface ConfirmDialogProps {
   onCancel: () => void;
   confirmText?: string;
   cancelText?: string;
-  confirmColor?: 'primary' | 'error' | 'success' | 'warning';
+  confirmColor?: "primary" | "error" | "success" | "warning";
 }
 
 function ConfirmDialog({
@@ -25,9 +25,9 @@ function ConfirmDialog({
   message,
   onConfirm,
   onCancel,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  confirmColor = 'primary',
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  confirmColor = "primary",
 }: ConfirmDialogProps) {
   return (
     <Dialog
@@ -46,7 +46,12 @@ function ConfirmDialog({
         <Button onClick={onCancel} color="inherit">
           {cancelText}
         </Button>
-        <Button onClick={onConfirm} variant="contained" color={confirmColor} autoFocus>
+        <Button
+          onClick={onConfirm}
+          variant="contained"
+          color={confirmColor}
+          autoFocus
+        >
           {confirmText}
         </Button>
       </DialogActions>

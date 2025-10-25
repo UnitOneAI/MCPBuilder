@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Box,
   TextField,
@@ -8,23 +8,31 @@ import {
   Tab,
   Alert,
   LinearProgress,
-} from '@mui/material';
-import { Upload as UploadIcon } from '@mui/icons-material';
-import { apiService } from '../../services/api';
+} from "@mui/material";
+import { Upload as UploadIcon } from "@mui/icons-material";
+import { apiService } from "../../services/api";
 
 interface StepApiConfigProps {
   apiConfig: any;
   setApiConfig: (config: any) => void;
-  onParseRequest?: (parseFunc: () => Promise<void>, canParse: boolean, isParsing: boolean) => void;
+  onParseRequest?: (
+    parseFunc: () => Promise<void>,
+    canParse: boolean,
+    isParsing: boolean,
+  ) => void;
 }
 
-function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfigProps) {
+function StepApiConfig({
+  apiConfig,
+  setApiConfig,
+  onParseRequest,
+}: StepApiConfigProps) {
   const [inputMethod, setInputMethod] = useState(0);
   const [formData, setFormData] = useState({
-    baseUrl: '',
-    openApiSpec: '',
-    documentation: '',
-    postmanCollection: '',
+    baseUrl: "",
+    openApiSpec: "",
+    documentation: "",
+    postmanCollection: "",
   });
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -52,7 +60,9 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
         const sizeInMB = sizeInBytes / 1024 / 1024;
 
         if (sizeInMB > 10) {
-          setParseError(`File too large (${sizeInMB.toFixed(2)}MB). Maximum size is 10MB. Please export a smaller collection or select specific folders from Postman.`);
+          setParseError(
+            `File too large (${sizeInMB.toFixed(2)}MB). Maximum size is 10MB. Please export a smaller collection or select specific folders from Postman.`,
+          );
           setParsing(false);
           return;
         }
@@ -61,10 +71,10 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
         try {
           const parsed = JSON.parse(formData.postmanCollection);
           if (!parsed.info || !parsed.item) {
-            throw new Error('Invalid Postman collection format');
+            throw new Error("Invalid Postman collection format");
           }
         } catch (e) {
-          setParseError('Invalid Postman collection JSON format');
+          setParseError("Invalid Postman collection JSON format");
           setParsing(false);
           return;
         }
@@ -78,11 +88,15 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
         parsedData = response.data.data;
       } else if (inputMethod === 1) {
         // Documentation
-        const response = await apiService.parseDocumentation(formData.documentation);
+        const response = await apiService.parseDocumentation(
+          formData.documentation,
+        );
         parsedData = response.data.data;
       } else if (inputMethod === 2) {
         // Postman
-        const response = await apiService.parsePostman(formData.postmanCollection);
+        const response = await apiService.parsePostman(
+          formData.postmanCollection,
+        );
         parsedData = response.data.data;
 
         // Show warning if present
@@ -93,10 +107,10 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
 
       // Store parsed data (baseUrl can be overridden in Step 3)
       const apiConfigData = {
-        name: parsedData.name || 'My API',
-        description: parsedData.description || '',
-        baseUrl: parsedData.baseUrl || '',
-        authType: parsedData.authType || 'none',
+        name: parsedData.name || "My API",
+        description: parsedData.description || "",
+        baseUrl: parsedData.baseUrl || "",
+        authType: parsedData.authType || "none",
         authConfig: parsedData.authConfig,
         endpoints: parsedData.endpoints || [],
         openApiSpec: inputMethod === 0 ? formData.openApiSpec : undefined,
@@ -106,7 +120,9 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
       // Store config in state - will be persisted when MCP server is created
       setApiConfig(apiConfigData);
     } catch (error: any) {
-      setParseError(error.response?.data?.error || error.message || 'Failed to parse');
+      setParseError(
+        error.response?.data?.error || error.message || "Failed to parse",
+      );
     } finally {
       setParsing(false);
     }
@@ -134,7 +150,8 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
         </Typography>
         {apiConfig.endpoints?.length > 500 && (
           <Alert severity="info" sx={{ mt: 2 }}>
-            <strong>Tip:</strong> You'll be able to filter and select specific endpoints in the next step.
+            <strong>Tip:</strong> You'll be able to filter and select specific
+            endpoints in the next step.
           </Alert>
         )}
         <Button
@@ -154,10 +171,15 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
         Parse Your API
       </Typography>
       <Typography variant="body2" color="textSecondary" paragraph>
-        Provide your API specification to automatically extract endpoints and generate MCP tools.
+        Provide your API specification to automatically extract endpoints and
+        generate MCP tools.
       </Typography>
 
-      <Tabs value={inputMethod} onChange={(_, v) => setInputMethod(v)} sx={{ mb: 2 }}>
+      <Tabs
+        value={inputMethod}
+        onChange={(_, v) => setInputMethod(v)}
+        sx={{ mb: 2 }}
+      >
         <Tab label="OpenAPI/Swagger" />
         <Tab label="API Documentation" />
         <Tab label="Postman Collection" />
@@ -165,7 +187,7 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
 
       {inputMethod === 0 && (
         <Box>
-          <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Box sx={{ mb: 2, display: "flex", gap: 2, alignItems: "center" }}>
             <Button
               variant="outlined"
               component="label"
@@ -181,12 +203,17 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
                   if (file) {
                     const sizeInMB = file.size / 1024 / 1024;
                     if (sizeInMB > 10) {
-                      setParseError(`File too large (${sizeInMB.toFixed(2)}MB). Maximum size is 10MB.`);
+                      setParseError(
+                        `File too large (${sizeInMB.toFixed(2)}MB). Maximum size is 10MB.`,
+                      );
                       return;
                     }
                     const reader = new FileReader();
                     reader.onload = (event) => {
-                      setFormData({ ...formData, openApiSpec: event.target?.result as string });
+                      setFormData({
+                        ...formData,
+                        openApiSpec: event.target?.result as string,
+                      });
                       setParseError(null);
                     };
                     reader.readAsText(file);
@@ -202,7 +229,9 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
             fullWidth
             label="OpenAPI Specification"
             value={formData.openApiSpec}
-            onChange={(e) => setFormData({ ...formData, openApiSpec: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, openApiSpec: e.target.value })
+            }
             multiline
             rows={10}
             placeholder="Or paste URL, YAML, or JSON here..."
@@ -213,7 +242,7 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
 
       {inputMethod === 1 && (
         <Box>
-          <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Box sx={{ mb: 2, display: "flex", gap: 2, alignItems: "center" }}>
             <Button
               variant="outlined"
               component="label"
@@ -229,12 +258,17 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
                   if (file) {
                     const sizeInMB = file.size / 1024 / 1024;
                     if (sizeInMB > 5) {
-                      setParseError(`File too large (${sizeInMB.toFixed(2)}MB). Maximum size is 5MB.`);
+                      setParseError(
+                        `File too large (${sizeInMB.toFixed(2)}MB). Maximum size is 5MB.`,
+                      );
                       return;
                     }
                     const reader = new FileReader();
                     reader.onload = (event) => {
-                      setFormData({ ...formData, documentation: event.target?.result as string });
+                      setFormData({
+                        ...formData,
+                        documentation: event.target?.result as string,
+                      });
                       setParseError(null);
                     };
                     reader.readAsText(file);
@@ -250,7 +284,9 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
             fullWidth
             label="API Documentation"
             value={formData.documentation}
-            onChange={(e) => setFormData({ ...formData, documentation: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, documentation: e.target.value })
+            }
             multiline
             rows={10}
             placeholder={`Example:\nGET /users - Get all users\n- page (number) - Page number\n- limit (number) - Items per page\n\nPOST /users - Create user\n- name (string) - User name\n- email (string) - User email`}
@@ -261,7 +297,7 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
 
       {inputMethod === 2 && (
         <Box>
-          <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Box sx={{ mb: 2, display: "flex", gap: 2, alignItems: "center" }}>
             <Button
               variant="outlined"
               component="label"
@@ -277,12 +313,17 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
                   if (file) {
                     const sizeInMB = file.size / 1024 / 1024;
                     if (sizeInMB > 10) {
-                      setParseError(`File too large (${sizeInMB.toFixed(2)}MB). Maximum size is 10MB.`);
+                      setParseError(
+                        `File too large (${sizeInMB.toFixed(2)}MB). Maximum size is 10MB.`,
+                      );
                       return;
                     }
                     const reader = new FileReader();
                     reader.onload = (event) => {
-                      setFormData({ ...formData, postmanCollection: event.target?.result as string });
+                      setFormData({
+                        ...formData,
+                        postmanCollection: event.target?.result as string,
+                      });
                       setParseError(null);
                     };
                     reader.readAsText(file);
@@ -298,7 +339,9 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
             fullWidth
             label="Postman Collection JSON"
             value={formData.postmanCollection}
-            onChange={(e) => setFormData({ ...formData, postmanCollection: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, postmanCollection: e.target.value })
+            }
             multiline
             rows={10}
             placeholder="Or paste Postman collection JSON here..."
@@ -308,7 +351,11 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
       )}
 
       {parseError && (
-        <Alert severity="error" sx={{ mt: 2 }} onClose={() => setParseError(null)}>
+        <Alert
+          severity="error"
+          sx={{ mt: 2 }}
+          onClose={() => setParseError(null)}
+        >
           {parseError}
         </Alert>
       )}
@@ -316,8 +363,14 @@ function StepApiConfig({ apiConfig, setApiConfig, onParseRequest }: StepApiConfi
       {parsing && (
         <Box sx={{ mt: 2 }}>
           <LinearProgress />
-          <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-            {inputMethod === 2 ? 'Parsing Postman collection... This may take a moment for large files.' : 'Parsing API specification...'}
+          <Typography
+            variant="caption"
+            color="textSecondary"
+            sx={{ mt: 1, display: "block" }}
+          >
+            {inputMethod === 2
+              ? "Parsing Postman collection... This may take a moment for large files."
+              : "Parsing API specification..."}
           </Typography>
         </Box>
       )}

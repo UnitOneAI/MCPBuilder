@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Stepper,
@@ -10,14 +10,14 @@ import {
   Typography,
   Paper,
   Alert,
-} from '@mui/material';
-import StepApiConfig from '../components/steps/StepApiConfig';
-import StepSelectEndpoints from '../components/steps/StepSelectEndpoints';
-import StepServerConfig from '../components/steps/StepServerConfig';
-import StepGenerate from '../components/steps/StepGenerate';
-import { apiService } from '../services/api';
+} from "@mui/material";
+import StepApiConfig from "../components/steps/StepApiConfig";
+import StepSelectEndpoints from "../components/steps/StepSelectEndpoints";
+import StepServerConfig from "../components/steps/StepServerConfig";
+import StepGenerate from "../components/steps/StepGenerate";
+import { apiService } from "../services/api";
 
-const steps = ['Parse API', 'Select Endpoints', 'Server Settings', 'Generate'];
+const steps = ["Parse API", "Select Endpoints", "Server Settings", "Generate"];
 
 function CreateServer() {
   const navigate = useNavigate();
@@ -28,17 +28,25 @@ function CreateServer() {
   const [apiConfig, setApiConfig] = useState<any>(null);
   const [selectedEndpoints, setSelectedEndpoints] = useState<any[]>([]);
   const [serverConfig, setServerConfig] = useState<any>({
-    transport: 'stdio',
-    description: 'Built by UNITONE MCP Builder',
+    transport: "stdio",
+    description: "Built by UNITONE MCP Builder",
   });
-  const [generatedServerId, setGeneratedServerId] = useState<string | null>(null);
+  const [generatedServerId, setGeneratedServerId] = useState<string | null>(
+    null,
+  );
 
   // Step 1 parsing state
-  const [parseFunc, setParseFunc] = useState<(() => Promise<void>) | null>(null);
+  const [parseFunc, setParseFunc] = useState<(() => Promise<void>) | null>(
+    null,
+  );
   const [canParse, setCanParse] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
 
-  const handleParseRequest = (func: () => Promise<void>, can: boolean, parsing: boolean) => {
+  const handleParseRequest = (
+    func: () => Promise<void>,
+    can: boolean,
+    parsing: boolean,
+  ) => {
     setParseFunc(() => func);
     setCanParse(can);
     setIsParsing(parsing);
@@ -46,14 +54,14 @@ function CreateServer() {
 
   // Scroll to top when step changes
   React.useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeStep]);
 
   const createApiConfigMutation = useMutation({
     mutationFn: (data: any) => apiService.createApiConfig(data),
     onSuccess: (response) => {
       setApiConfig(response.data.data);
-      queryClient.invalidateQueries({ queryKey: ['api-configs'] });
+      queryClient.invalidateQueries({ queryKey: ["api-configs"] });
     },
   });
 
@@ -61,7 +69,7 @@ function CreateServer() {
     mutationFn: (data: any) => apiService.createMcpServer(data),
     onSuccess: (response) => {
       setGeneratedServerId(response.data.data.id);
-      queryClient.invalidateQueries({ queryKey: ['mcp-servers'] });
+      queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
     },
   });
 
@@ -69,8 +77,10 @@ function CreateServer() {
     mutationFn: (serverId: string) => apiService.generateServer(serverId),
     onSuccess: () => {
       // Invalidate both the list and the specific server to refetch with updated path
-      queryClient.invalidateQueries({ queryKey: ['mcp-servers'] });
-      queryClient.invalidateQueries({ queryKey: ['mcp-server', generatedServerId] });
+      queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
+      queryClient.invalidateQueries({
+        queryKey: ["mcp-server", generatedServerId],
+      });
     },
   });
 
@@ -87,26 +97,27 @@ function CreateServer() {
           return;
         }
         if (!apiConfig) {
-          setError('Please provide your API specification');
+          setError("Please provide your API specification");
           return;
         }
       } else if (activeStep === 1) {
         // Step 2: Validate endpoints selection
         if (selectedEndpoints.length === 0) {
-          setError('Please select at least one endpoint');
+          setError("Please select at least one endpoint");
           return;
         }
       } else if (activeStep === 2) {
         // Step 3: Create API Config and MCP Server together in a transaction
         if (!serverConfig.name) {
-          setError('Please provide a server name');
+          setError("Please provide a server name");
           return;
         }
 
         // First create the API config if not already persisted
         let apiConfigId = apiConfig.id;
         if (!apiConfigId) {
-          const apiConfigResponse = await createApiConfigMutation.mutateAsync(apiConfig);
+          const apiConfigResponse =
+            await createApiConfigMutation.mutateAsync(apiConfig);
           apiConfigId = apiConfigResponse.data.data.id;
         }
 
@@ -132,7 +143,7 @@ function CreateServer() {
             try {
               await apiService.deleteApiConfig(apiConfigId);
             } catch (cleanupErr) {
-              console.error('Failed to cleanup API config:', cleanupErr);
+              console.error("Failed to cleanup API config:", cleanupErr);
             }
           }
           throw err;
@@ -140,7 +151,7 @@ function CreateServer() {
       } else if (activeStep === 3) {
         // Step 4: Generate server code
         if (!generatedServerId) {
-          setError('Server configuration not found');
+          setError("Server configuration not found");
           return;
         }
 
@@ -151,7 +162,7 @@ function CreateServer() {
 
       setActiveStep((prev) => prev + 1);
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'An error occurred');
+      setError(err.response?.data?.error || err.message || "An error occurred");
     }
   };
 
@@ -163,7 +174,7 @@ function CreateServer() {
     setActiveStep(0);
     setApiConfig(null);
     setSelectedEndpoints([]);
-    setServerConfig({ transport: 'stdio' });
+    setServerConfig({ transport: "stdio" });
     setGeneratedServerId(null);
     setError(null);
   };
@@ -197,9 +208,14 @@ function CreateServer() {
           />
         );
       case 3:
-        return <StepGenerate serverId={generatedServerId} isGenerated={generateServerMutation.isSuccess} />;
+        return (
+          <StepGenerate
+            serverId={generatedServerId}
+            isGenerated={generateServerMutation.isSuccess}
+          />
+        );
       default:
-        return 'Unknown step';
+        return "Unknown step";
     }
   };
 
@@ -212,16 +228,21 @@ function CreateServer() {
 
   // Dynamic Next button text based on step
   const getNextButtonText = () => {
-    if (isLoading) return 'Processing...';
-    if (activeStep === 0 && !apiConfig) return 'Parse & Continue';
-    if (isLastStep) return 'Generate';
-    return 'Next';
+    if (isLoading) return "Processing...";
+    if (activeStep === 0 && !apiConfig) return "Parse & Continue";
+    if (isLastStep) return "Generate";
+    return "Next";
   };
 
   return (
     <Box>
       <Box mb={4} pb={3} borderBottom="1px solid" borderColor="divider">
-        <Typography variant="h3" component="h1" fontWeight="600" color="#020618">
+        <Typography
+          variant="h3"
+          component="h1"
+          fontWeight="600"
+          color="#020618"
+        >
           Create MCP Server
         </Typography>
         <Typography variant="body2" color="text.secondary" mt={0.5}>
@@ -246,22 +267,30 @@ function CreateServer() {
 
         <Box sx={{ minHeight: 400 }}>{getStepContent(activeStep)}</Box>
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-          <Button onClick={() => navigate('/mcp-servers')} disabled={isLoading}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>
+          <Button onClick={() => navigate("/mcp-servers")} disabled={isLoading}>
             Cancel
           </Button>
           <Box>
-            <Button disabled={activeStep === 0 || isLoading || (isLastStep && generateServerMutation.isSuccess)} onClick={handleBack} sx={{ mr: 1 }}>
+            <Button
+              disabled={
+                activeStep === 0 ||
+                isLoading ||
+                (isLastStep && generateServerMutation.isSuccess)
+              }
+              onClick={handleBack}
+              sx={{ mr: 1 }}
+            >
               Back
             </Button>
             {isLastStep && generateServerMutation.isSuccess ? (
               <Button
                 variant="contained"
-                onClick={() => navigate('/mcp-servers')}
+                onClick={() => navigate("/mcp-servers")}
                 sx={{
-                  bgcolor: '#020618',
-                  '&:hover': {
-                    bgcolor: '#030a24',
+                  bgcolor: "#020618",
+                  "&:hover": {
+                    bgcolor: "#030a24",
                   },
                 }}
               >
@@ -271,11 +300,13 @@ function CreateServer() {
               <Button
                 variant="contained"
                 onClick={handleNext}
-                disabled={isLoading || (activeStep === 0 && !canParse && !apiConfig)}
+                disabled={
+                  isLoading || (activeStep === 0 && !canParse && !apiConfig)
+                }
                 sx={{
-                  bgcolor: '#020618',
-                  '&:hover': {
-                    bgcolor: '#030a24',
+                  bgcolor: "#020618",
+                  "&:hover": {
+                    bgcolor: "#030a24",
                   },
                 }}
               >

@@ -1,11 +1,11 @@
-import express from 'express';
-import { apiConfigsDb } from '../database.js';
-import { ApiConfigSchema } from '../../types/index.js';
+import express from "express";
+import { apiConfigsDb } from "../database.js";
+import { ApiConfigSchema } from "../../types/index.js";
 
 const router = express.Router();
 
 // Get all API configurations
-router.get('/', (req, res) => {
+router.get("/", (req, res) => {
   try {
     const configs = apiConfigsDb.findAll();
     res.json({
@@ -21,13 +21,13 @@ router.get('/', (req, res) => {
 });
 
 // Get API configuration by ID
-router.get('/:id', (req, res) => {
+router.get("/:id", (req, res) => {
   try {
     const config = apiConfigsDb.findById(req.params.id);
     if (!config) {
       return res.status(404).json({
         success: false,
-        error: 'API configuration not found',
+        error: "API configuration not found",
       });
     }
 
@@ -44,7 +44,7 @@ router.get('/:id', (req, res) => {
 });
 
 // Create new API configuration
-router.post('/', (req, res) => {
+router.post("/", (req, res) => {
   try {
     const validated = ApiConfigSchema.parse(req.body);
     const id = crypto.randomUUID();
@@ -59,7 +59,7 @@ router.post('/', (req, res) => {
     res.status(201).json({
       success: true,
       data: created,
-      message: 'API configuration created successfully',
+      message: "API configuration created successfully",
     });
   } catch (error: any) {
     res.status(400).json({
@@ -70,13 +70,13 @@ router.post('/', (req, res) => {
 });
 
 // Update API configuration
-router.put('/:id', (req, res) => {
+router.put("/:id", (req, res) => {
   try {
     const existing = apiConfigsDb.findById(req.params.id);
     if (!existing) {
       return res.status(404).json({
         success: false,
-        error: 'API configuration not found',
+        error: "API configuration not found",
       });
     }
 
@@ -88,7 +88,7 @@ router.put('/:id', (req, res) => {
     res.json({
       success: true,
       data: updated,
-      message: 'API configuration updated successfully',
+      message: "API configuration updated successfully",
     });
   } catch (error: any) {
     res.status(400).json({
@@ -99,13 +99,13 @@ router.put('/:id', (req, res) => {
 });
 
 // Delete API configuration
-router.delete('/:id', (req, res) => {
+router.delete("/:id", (req, res) => {
   try {
     const existing = apiConfigsDb.findById(req.params.id);
     if (!existing) {
       return res.status(404).json({
         success: false,
-        error: 'API configuration not found',
+        error: "API configuration not found",
       });
     }
 
@@ -113,7 +113,7 @@ router.delete('/:id', (req, res) => {
 
     res.json({
       success: true,
-      message: 'API configuration deleted successfully',
+      message: "API configuration deleted successfully",
     });
   } catch (error: any) {
     res.status(500).json({

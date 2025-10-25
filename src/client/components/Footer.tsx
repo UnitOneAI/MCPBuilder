@@ -1,6 +1,6 @@
-import React from 'react';
-import { Box, Typography, Link } from '@mui/material';
-import { Language as WebIcon } from '@mui/icons-material';
+import React from "react";
+import { Box, Typography, Link } from "@mui/material";
+import { Language as WebIcon } from "@mui/icons-material";
 
 function Footer() {
   const currentYear = new Date().getFullYear();
@@ -9,20 +9,20 @@ function Footer() {
     <Box
       component="footer"
       sx={{
-        mt: 'auto',
+        mt: "auto",
         py: 3,
         px: 2,
-        borderTop: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        borderTop: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
       }}
     >
       <Box
         sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          justifyContent: 'space-between',
-          alignItems: { xs: 'flex-start', md: 'center' },
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", md: "center" },
           gap: 2,
         }}
       >
@@ -44,14 +44,14 @@ function Footer() {
             rel="noopener noreferrer"
             underline="hover"
             color="text.secondary"
-            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+            sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
           >
             <WebIcon fontSize="small" /> unitone.ai
           </Link>
         </Box>
 
         {/* Right section - Copyright */}
-        <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
+        <Box sx={{ textAlign: { xs: "left", md: "right" } }}>
           <Typography variant="caption" color="text.secondary">
             © {currentYear} UNITONE Inc. All rights reserved.
           </Typography>
