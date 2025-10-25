@@ -8,14 +8,14 @@ Generate MCP servers from OpenAPI/Swagger specs, Postman collections, or API doc
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.2+-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-blue)](https://reactjs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![MCP](https://img.shields.io/badge/MCP-1.0.4-green)](https://modelcontextprotocol.io/)
+[![MCP](https://img.shields.io/badge/MCP-1.20+-green)](https://modelcontextprotocol.io/)
 
 ## Built With
 
 - **Backend**: Node.js + TypeScript + Express.js
 - **Frontend**: React 18 + Material-UI + Vite
 - **Database**: better-sqlite3
-- **MCP SDK**: [@modelcontextprotocol/sdk](https://www.npmjs.com/package/@modelcontextprotocol/sdk) v1.0.4+
+- **MCP SDK**: [@modelcontextprotocol/sdk](https://www.npmjs.com/package/@modelcontextprotocol/sdk) v1.20+
 - **Template Engine**: Handlebars
 - **Type Safety**: TypeScript + Zod
 
@@ -23,12 +23,7 @@ Generate MCP servers from OpenAPI/Swagger specs, Postman collections, or API doc
 
 **UNITONE MCP Builder is designed for local development use only.**
 
-This is the **open source version** intended for single-user local development environments. The admin portal should **NOT be deployed to public servers** as it:
-- Has no authentication system
-- Can fetch arbitrary URLs when parsing OpenAPI specifications (by design for functionality)
-- Is optimized for local, trusted developer environments
-
-**For Production/Public Deployments:**
+This is the **open source version** intended for single-user local development environments, while we welcome contributors! 
 
 If you require:
 - Hosted/managed MCP server generation
@@ -39,11 +34,8 @@ If you require:
 
 Please contact the **UNITONE team** at [https://unitone.ai](https://unitone.ai) for our enterprise solutions.
 
-> **Note**: Only the **generated MCP servers** are designed for production deployment. The builder application itself should remain in your local development environment.
-
 ## Table of Contents
 
-- [Important: Local Development Tool](#️-important-local-development-tool)
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Admin Portal Guide](#admin-portal-guide)
@@ -367,21 +359,24 @@ npm run format
 
 **Backend**
 - Node.js + TypeScript
-- Express.js
-- better-sqlite3
-- Handlebars template engine
-- Zod schema validation
+- Express.js (REST API server)
+- better-sqlite3 (embedded database)
+- Handlebars (template engine)
+- Zod (schema validation)
+- Axios (HTTP client)
 
 **Frontend**
 - React 18
-- Material-UI (MUI)
+- Material-UI (MUI) + Emotion (CSS-in-JS)
 - TanStack Query (React Query)
-- React Router
-- Zustand state management
-- Vite build tool
+- React Router (routing)
+- React Hook Form (form handling & validation)
+- Zustand (state management)
+- Notistack (toast notifications)
+- Vite + SWC (fast Rust-based build tool)
 
 **MCP Integration**
-- [@modelcontextprotocol/sdk](https://www.npmjs.com/package/@modelcontextprotocol/sdk) v1.0.4+
+- [@modelcontextprotocol/sdk](https://www.npmjs.com/package/@modelcontextprotocol/sdk) v1.20+
 
 ## Troubleshooting
 
